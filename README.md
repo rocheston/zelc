@@ -92,9 +92,6 @@ graph TB
 
 ---
 
-## 👤 **THE VISIONARY: HAJA MO**
-
-<div align="center">
 
 ### **HAJA MO**
 **Founder & CTO, Rocheston**
@@ -1751,6 +1748,20 @@ Because cybersecurity doesn't need another library.
 **That's the direction.**
 
 <br>
+
+
+# ⚡ ZelC: The Kinetic Cybersecurity Language
+
+[![Technical Report](https://img.shields.io/badge/Read%20Paper-Technical%20Report%20(2026)-blue?style=for-the-badge&logo=adobeacrobatreader)](./ZELC_TECHNICAL_REPORT.pdf)
+
+
+For the formal definition of **Kinetic Semantics**, **Blast Radius Analysis**, and the **Agentic Conformance Predicate**, please refer to the official specification:
+
+👉 **[ZELC_TECHNICAL_REPORT.pdf](./ZELC_TECHNICAL_REPORT.pdf)** (33 Pages)
+<br><br>
+## 👤 **THE VISIONARY: HAJA MO**
+<br><br>
+<div align="center">
 
 ```
 ███████╗███████╗██╗      ██████╗
