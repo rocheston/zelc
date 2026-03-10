@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZELC Developer Cheat Sheet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg0: #282828;
+      --bg1: #3c3836;
+      --bg2: #504945;
+      --fg0: #fbf1c7;
+      --fg1: #ebdbb2;
+      --red: #fb4934;
+      --green: #b8bb26;
+      --yellow: #fabd2f;
+      --blue: #83a598;
+      --purple: #d3869b;
+      --aqua: #8ec07c;
+      --orange: #fe8019;
+      --gray: #a89984;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 40px;
+      background: var(--bg0);
+      color: var(--fg1);
+      font-family: 'Fira Sans', sans-serif;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1180px;
+      background: var(--bg1);
+      border: 1px solid var(--bg2);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+    }
+
+    .header {
+      padding: 28px 34px 24px;
+      border-bottom: 2px solid var(--orange);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: var(--aqua);
+      font-size: 2.2rem;
+      line-height: 1.15;
+    }
+
+    .header p {
+      margin: 10px 0 0;
+      color: var(--gray);
+      line-height: 1.6;
+    }
+
+    .tag {
+      background: var(--bg0);
+      border: 1px solid var(--bg2);
+      color: var(--gray);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    .section {
+      padding: 30px 34px 10px;
+    }
+
+    .section h2 {
+      margin: 0 0 14px;
+      color: var(--yellow);
+      font-size: 1.45rem;
+      border-bottom: 1px solid var(--bg2);
+      padding-bottom: 10px;
+    }
+
+    .note {
+      color: var(--gray);
+      line-height: 1.65;
+      margin-bottom: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg0);
+      border: 1px solid var(--bg2);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    th {
+      text-align: left;
+      background: var(--bg2);
+      color: var(--orange);
+      font-size: 0.8rem;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      padding: 16px 18px;
+      font-weight: 700;
+    }
+
+    td {
+      padding: 16px 18px;
+      border-top: 1px solid var(--bg1);
+      vertical-align: top;
+      line-height: 1.55;
+      font-size: 1rem;
+    }
+
+    .symbol {
+      width: 110px;
+      text-align: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 1.35rem;
+      background: rgba(251,241,199,0.03);
+      white-space: nowrap;
+    }
+
+    .keyword {
+      width: 220px;
+      font-family: 'Fira Code', monospace;
+      font-weight: 600;
+      color: var(--green);
+      white-space: nowrap;
+    }
+
+    .desc strong {
+      color: var(--blue);
+    }
+
+    .red {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .orange {
+      color: var(--orange);
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--bg0);
+      border: 1px solid var(--bg2);
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      color: var(--aqua);
+      font-size: 1rem;
+      font-family: 'Fira Code', monospace;
+    }
+
+    .card p {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    .line {
+      background: var(--bg0);
+      border: 1px solid var(--bg2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      font-family: 'Fira Code', monospace;
+      color: var(--fg0);
+      overflow-x: auto;
+    }
+
+    .samples {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .sample {
+      border: 1px solid var(--bg2);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--bg0);
+    }
+
+    .sample-head {
+      background: var(--bg2);
+      color: var(--orange);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.95rem;
+      padding: 12px 16px;
+      font-weight: 600;
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px;
+      overflow-x: auto;
+      background: var(--bg0);
+      color: var(--fg0);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.94rem;
+      line-height: 1.7;
+    }
+
+    .tok-key { color: var(--yellow); }
+    .tok-name { color: var(--aqua); }
+    .tok-fn { color: var(--blue); }
+    .tok-str { color: var(--green); }
+    .tok-num { color: var(--purple); }
+    .tok-op { color: var(--orange); }
+
+    .footer {
+      margin: 26px 34px 34px;
+      padding-top: 20px;
+      border-top: 1px solid var(--bg2);
+      color: var(--gray);
+      text-align: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        padding: 18px;
+      }
+
+      .header,
+      .section {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .footer {
+        margin-left: 20px;
+        margin-right: 20px;
+      }
+
+      th, td {
+        padding: 14px;
+      }
+
+      .symbol,
+      .keyword {
+        width: auto;
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>ZELC Developer Cheat Sheet</h1>
+        <p>This reference defines the production visual syntax of ZelC, including symbolic operators, structural blocks, execution markers, and block-closure notation.</p>
+      </div>
+      <div class="tag">Build 168.0 // Haja Mo Sovereign</div>
+    </div>
+
+    <div class="section">
+      <h2>1. Core Syntax</h2>
+      <div class="note">
+  
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Marker</th>
+            <th>Keyword</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="symbol">📦</td>
+            <td class="keyword">package</td>
+            <td class="desc"><strong>Namespace:</strong> Declares the operational scope of the file.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🔌</td>
+            <td class="keyword">use</td>
+            <td class="desc"><strong>Import:</strong> Loads engines or providers like aina, edr, aws, and threat.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⚙️</td>
+            <td class="keyword">keep</td>
+            <td class="desc"><strong>Constant:</strong> Defines thresholds, modes, and fixed configuration values.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⭕️</td>
+            <td class="keyword">define</td>
+            <td class="desc"><strong>Open Circle Block:</strong> Starts a reusable helper function block.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🔥</td>
+            <td class="keyword">check</td>
+            <td class="desc"><strong>Entry Point:</strong> Starts an active monitoring or execution routine.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⚠️</td>
+            <td class="keyword">when</td>
+            <td class="desc"><strong>Conditional Gate:</strong> Opens a condition block.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🔹</td>
+            <td class="keyword">set</td>
+            <td class="desc"><strong>Assignment:</strong> Stores runtime values such as hostnames, users, processes, or scores.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🌀</td>
+            <td class="keyword">change</td>
+            <td class="desc"><strong>Mutation:</strong> Updates an existing value.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⚡</td>
+            <td class="keyword">do</td>
+            <td class="desc"><strong>Action Block:</strong> Opens the live execution zone.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⭕️</td>
+            <td class="keyword">each</td>
+            <td class="desc"><strong>Open Circle Block:</strong> Starts an iterator block.</td>
+          </tr>
+          <tr>
+            <td class="symbol">↩️</td>
+            <td class="keyword">return</td>
+            <td class="desc"><strong>Output:</strong> Returns helper data or results.</td>
+          </tr>
+          <tr>
+            <td class="symbol">☁️</td>
+            <td class="keyword">provider action</td>
+            <td class="desc"><strong>Execution Call:</strong> Invokes real cloud, EDR, Linux, IAM, or API actions.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🚨</td>
+            <td class="keyword">alert</td>
+            <td class="desc"><strong>Signal:</strong> Raises an alert for analysts or dashboards.</td>
+          </tr>
+          <tr>
+            <td class="symbol">📣</td>
+            <td class="keyword">notify</td>
+            <td class="desc"><strong>Communication:</strong> Sends messages to Teams or other channels.</td>
+          </tr>
+          <tr>
+            <td class="symbol">🧾</td>
+            <td class="keyword">evidence</td>
+            <td class="desc"><strong>Forensic Proof:</strong> Records artifacts, timestamps, and outcomes.</td>
+          </tr>
+          <tr>
+            <td class="symbol">⛓️</td>
+            <td class="keyword">rosecoin</td>
+            <td class="desc"><strong>Immutable Provenance:</strong> Anchors evidence to Rosecoin.</td>
+          </tr>
+          <tr>
+            <td class="symbol">✨</td>
+            <td class="keyword">gui</td>
+            <td class="desc"><strong>Visual Update:</strong> Pushes state into the visual interface layer.</td>
+          </tr>
+          <tr>
+            <td class="symbol red">🔴</td>
+            <td class="keyword">close block</td>
+            <td class="desc"><strong>Close Circle Block:</strong> Closes <span class="orange">define</span>, <span class="orange">each</span>, <span class="orange">when</span>, <span class="orange">do</span>, and <span class="orange">check</span> blocks.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>2. Block Model</h2>
+      <div class="note">
+        Open Circle Block starts structure. Full Red Circle closes structure.
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>⭕️ define</h3>
+          <p>Open Circle Block for reusable helper logic.</p>
+        </div>
+        <div class="card">
+          <h3>⭕️ each</h3>
+          <p>Open Circle Block for iterator logic.</p>
+        </div>
+        <div class="card">
+          <h3>⚠️ when</h3>
+          <p>Conditional block opener.</p>
+        </div>
+        <div class="card">
+          <h3>⚡ do</h3>
+          <p>Action block opener.</p>
+        </div>
+        <div class="card">
+          <h3><span class="red">🔴</span></h3>
+          <p>Close Circle Block.</p>
+        </div>
+      </div>
+
+      <div class="line">⭕️ define assess_risk(event) ... 🔴</div>
+      <div class="line">⭕️ each proc in suspicious_procs ... 🔴</div>
+      <div class="line">⚠️ when confidence &gt; 95 ... 🔴</div>
+      <div class="line">⚡ do ... 🔴</div>
+      <div class="line">🔥 check RansomwareOutbreakDefense ... 🔴</div>
+    </div>
+
+    <div class="section">
+      <h2>3. Sample Code for Each Marker</h2>
+      <div class="note">
+        Every symbol below has a direct sample developers can read quickly.
+      </div>
+
+      <div class="samples">
+        <div class="sample">
+          <div class="sample-head">📦 package</div>
+          <pre>📦 <span class="tok-key">package</span> <span class="tok-name">soc.endpoint</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🔌 use</div>
+          <pre>🔌 <span class="tok-key">use</span> <span class="tok-name">aina</span>, <span class="tok-name">edr</span>, <span class="tok-name">aws</span>, <span class="tok-name">threat</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⚙️ keep</div>
+          <pre>⚙️ <span class="tok-key">keep</span> <span class="tok-name">ENCRYPTION_VELOCITY_LIMIT</span> <span class="tok-op">=</span> <span class="tok-num">50</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⭕️ define ... 🔴</div>
+          <pre>⭕️ <span class="tok-key">define</span> <span class="tok-fn">assess_risk</span>(event)
+
+  🔹 <span class="tok-key">set</span> score <span class="tok-op">=</span> event.risk_score
+  ↩️ <span class="tok-key">return</span> score
+
+🔴</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🔥 check ... 🔴</div>
+          <pre>🔥 <span class="tok-key">check</span> <span class="tok-name">RansomwareOutbreakDefense</span>
+
+  ⚠️ <span class="tok-key">when</span> file_modifications_per_sec &gt; <span class="tok-num">50</span>
+    🔹 <span class="tok-key">set</span> infected_host <span class="tok-op">=</span> event.hostname
+  🔴
+
+🔴</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⚠️ when ... 🔴</div>
+          <pre>⚠️ <span class="tok-key">when</span> confidence &gt; <span class="tok-num">95</span>
+  🚨 <span class="tok-key">alert</span> critical message <span class="tok-str">"Ransomware detected"</span>
+🔴</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🔹 set</div>
+          <pre>🔹 <span class="tok-key">set</span> infected_host <span class="tok-op">=</span> event.hostname</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🌀 change</div>
+          <pre>🌀 <span class="tok-key">change</span> confidence <span class="tok-op">=</span> confidence <span class="tok-op">+</span> <span class="tok-num">10</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⚡ do ... 🔴</div>
+          <pre>⚡ <span class="tok-key">do</span>
+  ☁️ edr isolate host infected_host mode ISOLATION_MODE
+🔴</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⭕️ each ... 🔴</div>
+          <pre>⭕️ <span class="tok-key">each</span> proc in suspicious_procs
+  ☁️ edr kill process proc.pid on infected_host
+🔴</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">↩️ return</div>
+          <pre>↩️ <span class="tok-key">return</span> ai_verdict</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">☁️ provider action</div>
+          <pre>☁️ edr isolate host infected_host mode ISOLATION_MODE</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🚨 alert</div>
+          <pre>🚨 <span class="tok-key">alert</span> critical message <span class="tok-str">"RANSOMWARE VELOCITY DETECTED"</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">📣 notify</div>
+          <pre>📣 <span class="tok-key">notify</span> teams channel <span class="tok-str">"Incident Response"</span> message <span class="tok-str">"Containment started"</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🧾 evidence</div>
+          <pre>🧾 <span class="tok-key">evidence</span> record <span class="tok-str">"Containment_Event"</span> details {
+  target_host: infected_host,
+  confidence: threat_assessment.confidence
+}</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">⛓️ rosecoin</div>
+          <pre>⛓️ <span class="tok-key">rosecoin</span> anchor evidence_pack <span class="tok-str">"latest"</span></pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">✨ gui</div>
+          <pre>✨ <span class="tok-key">gui</span> update panel <span class="tok-str">"warroom"</span> with {
+  status: <span class="tok-str">"containment_active"</span>,
+  host: infected_host
+}</pre>
+        </div>
+
+        <div class="sample">
+          <div class="sample-head">🔴 close block</div>
+          <pre>🔴</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      [ROCHESTON AINA] • SOVEREIGN IDENTITY: <span class="red">HAJA MO</span> • © 2026
+    </div>
+  </div>
+</body>
+</html>
