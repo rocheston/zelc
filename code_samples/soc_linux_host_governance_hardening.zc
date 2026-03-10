@@ -1,0 +1,106 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Linux Host Hardening & Threat Eradication (System Ops Keywords)
+-- Intent: Demonstrates 'systemd', 'iptables', 'selinux', and 'chmod'. 
+-- Automates the neutralization of unauthorized persistence and enforces kernel-level security.
+-- Infrastructure: Linux Kernel (Debian/RHEL), Zelfire EDR, Systemd, UFW.
+-- Note: 'umask' and 'acl' are set to ensure "Secure by Default" file creation.
+
+package soc.linux_ops
+use linux, storage, network, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep SECURE_UMASK: Integer = 027
+⚙️ keep CRITICAL_SERVICES: Array = ["sshd", "zelfire-agent", "auditd"]
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check LinuxHostHardening
+  
+  -- Trigger Gate: A 'cron' job is created by an unprivileged user to run a hidden binary
+  ⚠️ when unauthorized_persistence_detected
+    
+    🔹 set target_host: String = event.hostname
+    🔹 set malicious_job: cron = event.cron_details
+    🔹 set binary_path: path  = event.file_path
+    
+    🚨 alert critical message "HOST BREACH: Unauthorized persistence detected on {target_host}. Hardening kernel space."
+
+    -- ============================================================================
+    -- 3. THE KINETIC RESPONSE (kill, signal, service)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Identify and kill the malicious process group using SIGKILL (9)
+      -- Voice-friendly: "Linux kill pid..."
+      🔹 set suspect_pid: pid = event.process_id
+      ☁️ linux send signal 9 to suspect_pid
+      
+      -- Action 2: Disable and stop the unauthorized 'systemd' unit
+      ☁️ linux systemd unit "backdoor.service" stop
+      ☁️ linux systemd unit "backdoor.service" disable
+      
+      -- Action 3: Remove the malicious 'cron' job
+      ☁ chroot target_host linux cron job delete malicious_job
+      
+      -- Action 4: Quarantine the binary and strip execution 'permissions'
+      -- Voice-friendly: "Chmod remove execution..."
+      ☁️ linux chmod "000" binary_path
+      ☁️ linux chown "root:root" binary_path
+
+      -- ============================================================================
+      -- 4. THE KERNEL & NETWORK HARDENING (iptables, selinux, ufw)
+      -- ============================================================================
+      -- Action 5: Enforce SELinux 'enforcing' mode
+      -- This provides kernel-level labeling and mandatory access control.
+      ☁️ linux selinux status set "enforcing"
+      
+      -- Action 6: Reset host firewall (iptables/ufw) to a "Deny All" ingress posture
+      -- Voice-friendly: "UFW enable..."
+      ☁️ linux ufw reset
+      ☁️ linux ufw default deny ingress
+      ☁️ linux ufw allow "ssh" -- Maintain management access
+      
+      -- Action 7: Set the global 'umask' for the system
+      ☁️ linux set umask SECURE_UMASK
+
+      -- ============================================================================
+      -- 5. THE AUDIT & MAINTENANCE LAYER (journal, apt, df)
+      -- ============================================================================
+      -- Action 8: Export the 'journal' logs for the last 10 minutes for forensics
+      🔹 set forensic_logs: String = linux journal export for_unit "ALL" since "10m"
+      
+      -- Action 9: Verify disk and memory health post-cleanup
+      🔹 set disk_load: load = linux disk status
+      🔹 set mem_usage: memory = linux memory status
+      
+      -- Action 10: Trigger an 'apt' or 'dnf' update for security patches
+      ☁️ linux package update --security-only
+
+      -- Action 11: Notify the System Administrators
+      📡 notify slack channel "#linux-security-ops" message "🐧 *Host Rehabilitation Complete* \n*Target:* `{target_host}` \n*Status:* `HARDENED` \n*Actions:* PID Killed. Service Disabled. UFW Reset. SELinux Enforced."
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Linux_System_Hardening_Cycle" details {
+          host: target_host,
+          kernel_status: "ENFORCING",
+          firewall: "UFW_ACTIVE",
+          action: "HOST_OS_IMMUNIZATION_SUCCESS"
+      }
+      
+      -- Anchor the kernel state and journal hashes to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

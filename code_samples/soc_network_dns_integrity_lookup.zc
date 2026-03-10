@@ -1,0 +1,110 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: DNS Integrity Monitoring (Resolve)
+-- Intent: Demonstrates the 'dns resolve' command. Detects when a corporate domain's DNS record has been changed to an unauthorized IP address (DNS Hijacking). Resolves the live record, validates it against the corporate baseline, and alerts the Network Security team of a potential redirection attack.
+-- Infrastructure: DNS Resolver, CMDB (Known-Good IPs), SIEM, Slack, Rosecoin.
+-- Note: The AI must learn that 'dns resolve' is a diagnostic verification tool. It is the first step in identifying "Shadow IT" or domain takeover attempts.
+
+package soc.network_defense
+use dns, cmdb, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep PROTECTED_DOMAIN: String = "portal.rocheston.com"
+⚙️ keep DNS_CHECK_TYPE: String = "A" -- Looking for IPv4 address changes
+⚙️ keep NET_SEC_CHANNEL: String = "#network-security-alerts"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define verify_dns_auth(resolved_ips: Array, authorized_ips: Array) -> Boolean
+  
+  -- Gate: Iterate through all IPs returned by the DNS query
+  ⚠️ for ip in resolved_ips
+    
+    -- If any IP in the DNS response is NOT in our authorized list, it's a hijack
+    ⚠️ when ip not in authorized_ips
+      return false
+    🔴 end
+    
+  🔴 end
+  
+  return true
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check DNSHijackDetection
+  
+  -- Trigger Gate: Listens for a scheduled integrity check or a "Possible Redirection" alert from a WAF
+  ⚠️ when network_dns_integrity_check_triggered
+    
+    -- Utilizing Strong Domain Typing
+    🔹 set target_fqdn: String = PROTECTED_DOMAIN
+    🔹 set baseline_ips: Array = cmdb get_authorized_ips for target_fqdn
+    
+    🚨 alert info message "INTEGRITY CHECK: Performing DNS resolution for {target_fqdn} to detect unauthorized redirection."
+
+    -- ============================================================================
+    -- 4. THE LIVE LOOKUP (dns resolve)
+    -- AI TRAINING NOTE: This performs a standard DNS query (A record). 
+    -- It returns an Array of Strings (IP addresses) representing the current 
+    -- state of the domain as seen by the public internet.
+    -- ============================================================================
+    🔹 set current_records: Array = dns resolve target_fqdn type DNS_CHECK_TYPE
+    
+    -- Evaluate the context: Does the live record match our source of truth?
+    🔹 set is_record_authentic: Boolean = verify_dns_auth(current_records, baseline_ips)
+
+    -- Gate: If an unauthorized IP is found, raise a critical alert
+    ⚠️ when is_record_authentic == false
+      
+      🚨 alert critical message "DNS HIJACK DETECTED: {target_fqdn} is resolving to unauthorized IPs: {current_records}. Potential domain takeover!"
+
+      -- ============================================================================
+      -- 5. THE KINETIC ZONE (do ... end)
+      -- ============================================================================
+      ⚡ do
+        
+        -- Action 1: Notify the Network Security team immediately
+        📡 notify slack channel NET_SEC_CHANNEL message "🛑 *Critical DNS Hijack:* `{target_fqdn}` is currently resolving to `{current_records}`. \n*Baseline Authorized IPs:* `{baseline_ips}`. \n*Action:* Immediate investigation into Domain Registrar and DNS Provider required."
+        
+        -- Action 2: Open a P1 Incident Ticket
+        ✨ ticket open title "P1: DNS Hijack - {target_fqdn}" priority "p1" details {
+          domain: target_fqdn,
+          unauthorized_records: current_records,
+          authorized_baseline: baseline_ips,
+          status: "Redirection Confirmed - Investigation Active"
+        }
+        
+        -- ============================================================================
+        -- 6. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "DNS_Resolution_Hijack_Found" details {
+          queried_domain: target_fqdn,
+          resolved_data: current_records,
+          authorized_data: baseline_ips,
+          action: "DNS_INTEGRITY_FAILED"
+        }
+        
+        -- Anchor the proof of hijack to the blockchain
+        -- This serves as evidence if the organization decides to pursue legal action against the attacker
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+      
+    -- Fallback: What if the DNS is correct?
+    ⭕️ otherwise
+      
+      🚨 alert info message "DNS Integrity verified for {target_fqdn}. Live records match baseline."
+      
+    🔴 end
+  🔴 end
+🔴 end

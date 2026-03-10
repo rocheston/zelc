@@ -1,0 +1,90 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Multi-Cloud Identity & Resource Governance (Cloud Keywords)
+-- Intent: Demonstrates 'tenant', 'managedidentity', 'secretsmanager', and 'role'. 
+-- Coordinates a unified response to a cross-cloud credential compromise.
+-- Infrastructure: AWS IAM, Azure AD (Entra), GCP IAM, Rosecoin.
+-- Note: 'principal' refers to the unique identity being investigated across all clouds.
+
+package soc.cloud_governance
+use aws, azure, gcloud, iam, rosecoin, slack
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep AUDIT_TAG: String = "Compliance-Locked"
+⚙️ keep LOCKDOWN_ROLE: String = "ReadOnly-Security-Audit"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check MultiCloudIdentityLockdown
+  
+  -- Trigger Gate: AINA identifies a "Time-of-Check to Time-of-Use" (TOCTOU) 
+  -- credential anomaly across AWS and Azure simultaneously.
+  ⚠️ when multi_cloud_token_theft_detected
+    
+    🔹 set target_user: String = event.principal_id
+    🔹 set aws_account: account = aws current_account
+    🔹 set azure_tenant: tenant = azure current_tenant
+    
+    🚨 alert critical message "CROSS-CLOUD BREACH: Compromised principal {target_user} detected in {aws_account} and {azure_tenant}."
+
+    -- ============================================================================
+    -- 3. THE IDENTITY LAYER (role, managedidentity, serviceaccount)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Revoke all active AWS sessions and rotate the user keys
+      -- Voice-friendly: "AWS revoke user sessions..."
+      ☁️ aws iam revoke_sessions for target_user
+      ☁️ aws secretsmanager rotate_secret for "user/{target_user}/api-key"
+      
+      -- Action 2: Disable the Azure Managed Identity and clear the token cache
+      -- Voice-friendly: "Azure disable identity..."
+      ☁️ azure managedidentity disable for target_user in "Production-ResourceGroup"
+      ☁️ azure ad clear_tokens for target_user
+      
+      -- Action 3: Strip permissions and assign a 'ReadOnly' role to the GCP Service Account
+      ☁️ gcloud project target_project iam remove_role "Owner" from target_user
+      ☁️ gcloud project target_project iam add_role LOCKDOWN_ROLE to target_user
+
+      -- ============================================================================
+      -- 4. THE RESOURCE LAYER (region, zone, tag, resourcegroup)
+      -- ============================================================================
+      -- Action 4: Tag all resources owned by this principal across all regions
+      -- This facilitates easier "blast radius" cleanup later.
+      ☁️ aws tag resources for target_user with { "SecurityStatus": AUDIT_TAG } in "all-regions"
+      ☁️ azure resourcegroup "Dev-Ops-RG" add_tag AUDIT_TAG
+      
+      -- Action 5: Lock the KeyVault/SecretsManager access for the compromised ID
+      ☁️ azure keyvault "prod-vault" set_policy target_user permissions "None"
+      ☁️ aws secretsmanager set_policy "prod-secrets" target_user deny "all"
+
+      -- ============================================================================
+      -- 5. THE NOTIFICATION LAYER (slack, email, project)
+      -- ============================================================================
+      -- Action 6: Notify the Multi-Cloud Security Team
+      📡 notify slack channel "#cloud-security-warroom" message "☁️ *Cross-Cloud Lockdown Successful* \n*Principal:* `{target_user}` \n*AWS Account:* `{aws_account}` \n*Azure Tenant:* `{azure_tenant}` \n*Status:* Sessions REVOKED. ManagedIdentities DISABLED. Roles STRIPPED."
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Multi_Cloud_Identity_Remediation" details {
+          principal: target_user,
+          clouds_impacted: ["AWS", "Azure", "GCP"],
+          tag_applied: AUDIT_TAG,
+          action: "GLOBAL_IDENTITY_PURGE_SUCCESS"
+      }
+      
+      -- Anchor the cloud-native audit trails and session IDs to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

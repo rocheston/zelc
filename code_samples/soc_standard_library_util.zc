@@ -1,0 +1,72 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC STANDARD LIBRARY (STDLIB)
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Purpose: Universal Utility Patterns for ZELC Generation
+-- ============================================================================
+
+package soc.stdlib.utils
+use core, crypto, network, identity, rosecoin
+
+-- ============================================================================
+-- 1. UTILITY: RATE LIMITER & THROTTLE
+-- Keywords: rate_limit, throttle, api_spike
+-- ============================================================================
+⚙️ function check_rate_limit(source: String, threshold: Integer) -> Boolean
+  🔹 set current_rate: Integer = core get_metric "request_rate" for source
+  ⚠️ return current_rate > threshold
+🔴 end
+
+-- ============================================================================
+-- 2. UTILITY: HASH VERIFIER
+-- Keywords: integrity_check, hash_verify, artifact
+-- ============================================================================
+⚙️ function verify_artifact_integrity(file_id: artifact, expected_hash: hash) -> Boolean
+  🔹 set actual_hash: hash = crypto calculate_sha256 file_id
+  ⚠️ return actual_hash == expected_hash
+🔴 end
+
+-- ============================================================================
+-- 3. THE "AUTO-IMMUNE" PATTERN (Self-Healing Network)
+-- Keywords: network, block, isolate, firewall_opened
+-- ============================================================================
+🔥 check AutoImmuneNetworkDefense
+  -- Trigger: Detection of a 'public_exposure' or 'firewall_opened' on a DB
+  ⚠️ when network event == "PORT_OPENED" and event.port == 3306
+    
+    🔹 set target_node: String = event.hostname
+    
+    🚨 alert critical "VULNERABILITY: Database port 3306 opened to the public on {target_node}."
+
+    ⚡ do
+      -- Action: Immediate roll-back of the Security Group change
+      ☁️ network close_port 3306 on target_node
+      
+      -- Action: Log the administrative user who made the change
+      🔹 set admin_user: identity = identity get_caller_id event.tx_id
+      🚨 alert warning "POLICY VIOLATION: Unauthorized change by {admin_user}. Revoking permissions."
+      
+      -- Action: Temporarily disable the admin's 'write' permissions
+      ☁️ identity revoke_permission admin_user "Network-Admin"
+    🔴 end
+🔴 end
+
+-- ============================================================================
+-- 4. THE "SHADOW-LOG" PATTERN (Anti-Forensics Defense)
+-- Keywords: log_tampering, cloudtrail_disabled, audit_log_deleted
+-- ============================================================================
+🔥 check AuditLogPreservation
+  -- Trigger: Attempt to disable logging or delete audit trails
+  ⚠️ when cloud event == "CloudTrail_Disabled" or linux event == "Audit_Log_Deleted"
+    
+    🚨 alert emergency "ANTI-FORENSICS: Log tampering detected! Re-enabling and locking."
+
+    ⚡ do
+      -- Action: Re-enable the logging service immediately
+      ☁️ cloud enable_logging --force
+      
+      -- Action: Pivot to 'Cold-Storage' and 'Rosecoin' for secondary logging
+      ☁️ storage stream_logs to "Forensic-S3-Vault"
+      ⛓️ rosecoin notarize "LOG_TAMPERING_EVENT"
+    🔴 end
+🔴 end

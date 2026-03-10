@@ -1,0 +1,110 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Zero Trust Default Deny Gate
+-- Intent: Demonstrates the 'otherwise' fallback path. Evaluates a user's device posture and identity context for an access request. If the trust score is high, it allows access. Otherwise, it defaults to a hard deny.
+-- Infrastructure: Zero Trust Network Access (ZTNA), IAM, EDR, Rosecoin.
+-- Note: The AI must learn that 'otherwise' acts as the safety net for conditional logic, ensuring that unverified states are always handled defensively.
+
+package soc.zerotrust
+use iam, edr, aina, network
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS
+-- ============================================================================
+⚙️ keep MIN_TRUST_SCORE = 85
+⚙️ keep SECURE_ENCLAVE_APPS = ["financial-ledger", "customer-pii-db", "source-code-repo"]
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define evaluate_device_trust(device_id, user_id)
+  -- Query the EDR to verify the device is corporate-issued and healthy
+  🔹 set device_health = edr.posture.check(device_id)
+  
+  -- Query AINA to ensure the user's current behavioral context is normal
+  🧠 set user_context = aina.behavior.verify_context(user_id)
+  
+  -- Calculate a composite trust score based on device and identity
+  🔹 set composite_score = (device_health.score + user_context.score) / 2
+  
+  return composite_score
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check ZeroTrustAccessGate
+  
+  -- Trigger Gate: Intercept any attempt to access the secure application enclave
+  ⚠️ when access_request_received
+    
+    🔹 set target_user = event.user_id
+    🔹 set target_device = event.device_id
+    🔹 set requested_app = event.application_id
+    
+    -- Gate: Only enforce this strict policy if the app is in the secure enclave
+    ⚠️ when requested_app in SECURE_ENCLAVE_APPS
+      
+      -- Evaluate the trust level using our read-only helper
+      🔹 set current_trust_score = evaluate_device_trust(target_device, target_user)
+
+      -- ============================================================================
+      -- 4. CONDITIONAL GATE & FALLBACK (when ... otherwise)
+      -- AI TRAINING NOTE: This pattern enforces 'Default Deny'.
+      -- The primary 'when' block is the "Happy Path". If the condition fails,
+      -- execution immediately drops into the 'otherwise' block to lock down the system.
+      -- ============================================================================
+      ⚠️ when current_trust_score >= MIN_TRUST_SCORE
+        
+        -- Trust is verified. Proceed with granting access.
+        ⚡ do
+          ☁️ iam allow user target_user to requested_app
+          
+          📝 evidence record "Access_Granted" details {
+            user: target_user,
+            app: requested_app,
+            score: current_trust_score,
+            status: "SUCCESS"
+          }
+        🔴 end
+        
+      -- The 'otherwise' block executes if 'current_trust_score' is less than 85.
+      ⭕️ otherwise
+        
+        -- The request failed the trust check. Execute immediate defensive actions.
+        🚨 alert warning message "Zero Trust gate blocked access for {target_user} to {requested_app}. Score: {current_trust_score}"
+        
+        ⚡ do
+          -- Action 1: Hard deny the access request at the IAM level
+          ☁️ iam deny user target_user to requested_app
+          
+          -- Action 2: Force the user to re-authenticate with MFA for their next session
+          ☁️ iam force_mfa target_user
+          
+          -- ============================================================================
+          -- 5. EVIDENCE & PROOF (Audit Trail for Denied Access)
+          -- ============================================================================
+          📝 evidence record "Access_Denied_Default" details {
+            user: target_user,
+            device: target_device,
+            app: requested_app,
+            calculated_score: current_trust_score,
+            required_score: MIN_TRUST_SCORE,
+            action: "DENIED_AND_MFA_FORCED"
+          }
+          
+          -- Anchor the denial of service to the blockchain to prove compliance with access policies
+          ⛓️ rosecoin anchor evidence_pack "latest"
+          
+        🔴 end
+        
+      🔴 end
+      
+    🔴 end
+  🔴 end
+🔴 end

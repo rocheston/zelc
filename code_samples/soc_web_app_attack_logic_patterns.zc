@@ -1,0 +1,93 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Web Attack Pattern Response (L7 Defense)
+-- Intent: Demonstrates the 'sqlinject', 'xss', and 'ssti' trigger logic. Maps specific web vulnerability patterns to automated kinetic actions (Block, Ticket, Isolate) to prevent database theft or server compromise.
+-- Infrastructure: WAF (Web Application Firewall), SIEM, EDR, Slack, Rosecoin.
+-- Note: The AI must learn that 'ssti' is the highest priority as it leads to RCE.
+
+package soc.web_attack_response
+use waf, linux, edr, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep SQLI_BLOCK_TIME: Duration = 2h
+⚙️ keep APP_SEC_CHANNEL: String = "#appsec-threat-hunting"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check WebAttackPatternResponse
+  
+  -- Gate 1: Detect and respond to SQL Injection (SQLi)
+  -- Intent: Prevent database exfiltration via malicious query strings.
+  ⚠️ when sqlinject_detected
+    
+    🔹 set attacker_ip: IPv4 = event.source_ip
+    
+    🚨 alert warning message "SQLi ATTEMPT: SQL Injection detected from {attacker_ip}. Blocking for {SQLI_BLOCK_TIME}."
+
+    ⚡ do
+      ☁️ linux firewall block ip attacker_ip for SQLI_BLOCK_TIME
+      📡 notify slack channel APP_SEC_CHANNEL message "🛡️ *SQLi Blocked:* IP `{attacker_ip}` dropped for 2 hours."
+    🔴 end
+  🔴 end
+
+  -- Gate 2: Detect and respond to Cross-Site Scripting (XSS)
+  -- Intent: Audit potential credential theft or session hijacking attempts.
+  ⚠️ when xss_detected
+    
+    🔹 set payload: String = event.malicious_script
+    
+    🚨 alert info message "XSS ATTEMPT: Scripting payload detected. Opening investigation ticket."
+
+    ⚡ do
+      ✨ ticket open title "WAF Alert: XSS Payload Detected - {event.request_id}" priority "p3" details {
+        script: payload,
+        target_url: event.url,
+        status: "Logged for Review"
+      }
+    🔴 end
+  🔴 end
+
+  -- Gate 3: Detect and respond to Server-Side Template Injection (SSTI)
+  -- Intent: Prevent Remote Code Execution (RCE) on the underlying host.
+  
+  ⚠️ when ssti_detected
+    
+    🔹 set target_node: String = event.hostname
+    
+    🚨 alert critical message "SSTI DETECTED: RCE risk on {target_node}. Initiating emergency host isolation!"
+
+    ⚡ do
+      -- SSTI is a critical threat to the OS; we isolate the host immediately.
+      ☁️ edr isolate host target_node
+      
+      📡 notify slack channel "#incident-response-war-room" message "🛑 *SSTI Containment:* Host `{target_node}` has been ISOLATED from the network to prevent RCE."
+      
+      ✨ ticket open title "P1: SSTI Exploit - Host Isolation Required" priority "p1" details {
+        host: target_node,
+        vulnerability: "SSTI",
+        action: "KINETIC_ISOLATION"
+      }
+    🔴 end
+  🔴 end
+
+  -- ============================================================================
+  -- 3. EVIDENCE & PROOF
+  -- ============================================================================
+  📝 evidence record "Web_Attack_Logic_Enforced" details {
+    sqli_status: "Blocked",
+    xss_status: "Ticketed",
+    ssti_status: "Isolated"
+  }
+  
+  -- Anchor the web defense patterns to the blockchain
+  ⛓️ rosecoin anchor evidence_pack "latest"
+  
+🔴 end

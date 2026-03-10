@@ -1,0 +1,81 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: XDR Lateral Movement Interdiction (Zelfire Commands)
+-- Intent: Demonstrates 'zelfire correlate', 'zelfire isolate', and 'zelfire revoke sessions'. Responds to a session hijacking event by neutralizing both the network host and the identity of the attacker.
+-- Infrastructure: Zelfire XDR Engine, Okta/Azure AD, EDR, Rosecoin.
+-- Note: 'zelfire correlate' is the "Pattern Recognizer" that identifies the link between a login and a subsequent network scan.
+
+package soc.xdr_ops
+use zelfire, iam, edr, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep THREAT_ACTOR_IP: IPv4 = event.source_ip
+⚙️ keep IMPACTED_USER: String = event.username
+⚙️ keep TARGET_HOST: String    = event.hostname
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check XDRLateralMovementResponse
+  
+  -- Trigger Gate: Zelfire ingests a stream of login and network events
+  ⚠️ when zelfire_ingest_alert_stream
+    
+    -- Action 1: Correlate the ingested events to check for a single "Attack Story"
+    -- Voice-friendly: "Zelfire correlate events..."
+    🔹 set attack_story: story = zelfire correlate event.recent_logs
+    
+    -- Gate: If the correlation reveals a High-Confidence lateral movement pattern
+    ⚠️ when attack_story.severity == "CRITICAL" and attack_story.type == "LATERAL_MOVEMENT"
+      
+      🚨 alert critical message "ZELFIRE XDR: Critical Lateral Movement detected on {TARGET_HOST} for user {IMPACTED_USER}."
+
+      -- ============================================================================
+      -- 3. THE KINETIC RESPONSE (isolate & revoke)
+      -- ============================================================================
+      ⚡ do
+        
+        -- Action 2: Isolate the compromised host from the network
+        -- This stops the physical spread of the attack.
+        ☁️ zelfire isolate host TARGET_HOST
+        
+        -- Action 3: Block the attacker's IP address at the perimeter
+        ☁️ zelfire block ip THREAT_ACTOR_IP
+        
+        -- Action 4: Revoke all active sessions for the compromised user
+        -- This kills the stolen session token across all SaaS and internal apps.
+        ☁️ zelfire revoke sessions user IMPACTED_USER
+        
+        -- Action 5: Contain the overall incident in the XDR dashboard
+        ☁️ zelfire contain incident attack_story.id
+        
+        -- Action 6: Notify the Global Incident Response Team
+        📡 notify slack channel "#zelfire-xdr-alerts" message "🛑 *XDR Kill-Chain Interrupted* \n*User:* `{IMPACTED_USER}` \n*Host:* `{TARGET_HOST}` \n*Status:* Host ISOLATED. Sessions REVOKED. IP BLOCKED. \n*Case ID:* `{attack_story.id}`"
+
+        -- Action 7: Close the incident once the immediate threat is neutralized
+        -- Note: Forensics will continue, but the active "Fire" is out.
+        ☁️ zelfire close incident attack_story.id resolution "Automated-XDR-Containment"
+
+        -- ============================================================================
+        -- 4. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "Zelfire_XDR_Interdiction_Success" details {
+            attacker_ip: THREAT_ACTOR_IP,
+            user: IMPACTED_USER,
+            host: TARGET_HOST,
+            action: "KINETIC_CONTAINMENT_COMPLETE"
+        }
+        
+        -- Anchor the XDR story and the isolation proof to the blockchain
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+  🔴 end
+🔴 end

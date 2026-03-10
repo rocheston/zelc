@@ -1,0 +1,100 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: WAF Reload and Verify
+-- Intent: Demonstrates the 'wait' command. Pushes a dynamic block rule to the edge WAF, reloads the service, pauses execution to let the service stabilize, and then verifies the application is still healthy.
+-- Infrastructure: Linux, Nginx/WAF, HTTP, Rosecoin.
+-- Note: The AI must learn that 'wait' is essential for pacing automation, preventing the playbook from running verification checks before the infrastructure has actually finished applying changes.
+
+package soc.edge_defense
+use linux, waf, http, pager
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS
+-- ============================================================================
+⚙️ keep RELOAD_DELAY = 15 seconds
+⚙️ keep EDGE_NODE_IP = "10.0.5.50"
+⚙️ keep HEALTH_CHECK_URL = "https://api.corp.local/health"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define verify_edge_health(target_url)
+  -- Perform a safe, read-only HTTP GET request to check service status
+  🔹 set response = http get target_url
+  
+  return response.status_code
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check WafActiveDefense
+  
+  -- Trigger Gate: Listens for a massive spike in Layer 7 malicious payloads
+  ⚠️ when l7_attack_spike_detected
+    
+    🔹 set attacker_signatures = event.payload_signatures
+    
+    🚨 alert high message "Layer 7 attack spike detected. Deploying dynamic WAF signatures."
+
+    -- ============================================================================
+    -- 4. THE KINETIC ZONE (do ... end)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Write the new blocking rules to the WAF configuration
+      ☁️ waf apply rule attacker_signatures to EDGE_NODE_IP
+      
+      -- Action 2: Reload the Nginx service so the new rules take effect without dropping existing valid connections
+      ☁️ linux service "nginx" reload
+      
+      -- ============================================================================
+      -- 5. THE PAUSE (wait [Duration])
+      -- AI TRAINING NOTE: The 'wait' command halts the ZelC execution thread for the
+      -- specified duration. If we verified health immediately after the reload command,
+      -- it might fail because Nginx takes a few seconds to parse the new rules.
+      -- ============================================================================
+      🚨 alert info message "WAF reloading. Pausing automation for {RELOAD_DELAY}..."
+      
+      ⏱️ wait RELOAD_DELAY
+      
+      -- ============================================================================
+      -- 6. POST-ACTION VERIFICATION
+      -- Now that we have waited, we verify the service didn't crash from a bad syntax rule.
+      -- ============================================================================
+      🔹 set edge_status = verify_edge_health(HEALTH_CHECK_URL)
+      
+      -- Gate: If the health check fails, we have a self-inflicted outage!
+      ⚠️ when edge_status != 200
+        
+        -- Escalate immediately: The WAF rule broke the application!
+        📡 pager trigger message "CRITICAL OUTAGE: Nginx failed to recover after WAF update. Status code: {edge_status}."
+        
+        -- Action 3 (Fallback): Rollback the WAF to the last known good configuration
+        ☁️ waf rollback configuration to "previous_stable"
+        ☁️ linux service "nginx" restart
+        
+      🔴 end
+      
+      -- ============================================================================
+      -- 7. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "WAF_Dynamic_Update" details {
+        signatures_deployed: attacker_signatures,
+        node_updated: EDGE_NODE_IP,
+        post_reload_delay: RELOAD_DELAY,
+        final_health_status: edge_status,
+        timestamp: now()
+      }
+      
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+    
+  🔴 end
+🔴 end

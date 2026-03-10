@@ -1,0 +1,103 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Windows Enterprise & AD Interdiction (Windows Keywords)
+-- Intent: Demonstrates 'activedirectory', 'powershell', 'lockout', and 'sysmon'. 
+-- Neutralizes an active Kerberos-based attack and cleanses the Windows fleet.
+-- Infrastructure: Windows Server 2025, Active Directory, Sysmon, Microsoft Defender.
+-- Note: 'collect_memory' is performed before 'kill_process' to preserve volatile artifacts.
+
+package soc.windows_ad_ops
+use windows, activedirectory, defender, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep DOMAIN_ROOT: String = "DC=rocheston,DC=io"
+⚙️ keep FORENSIC_SHARE: String = "\\forensics-srv\vault$"
+⚙️ keep CRITICAL_OU: String = "OU=Executive,DC=rocheston,DC=io"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check WindowsADThreatInterdiction
+  
+  -- Trigger Gate: Sysmon detects 'ProcessCreate' for powershell.exe with Base64 encoded commands
+  ⚠️ when windows_sysmon_encoded_ps_detected or kerberos_golden_ticket_anomaly
+    
+    🔹 set target_host: String = event.hostname
+    🔹 set target_user: String = event.username
+    🔹 set suspect_pid: pid    = event.process_id
+    
+    🚨 alert critical message "AD BREACH: Suspicious PowerShell via {target_user} on {target_host}. Initiating Domain Lockdown."
+
+    -- ============================================================================
+    -- 3. THE IDENTITY INTERDICTION (activedirectory, lockout, reset_password)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Immediately lockout the user in Active Directory
+      -- Voice-friendly: "AD lockout user..."
+      ☁️ activedirectory lockout target_user in DOMAIN_ROOT
+      
+      -- Action 2: Disable the user account to prevent NTLM/Kerberos fallback
+      ☁️ activedirectory disable_user target_user
+      
+      -- Action 3: Reset the KRBTGT (Kerberos TGT) password twice to flush Golden Tickets
+      -- This is a high-impact action usually reserved for recovery.
+      ⚠️ when event.threat_type == "GOLDEN_TICKET"
+         ☁️ activedirectory reset_password "krbtgt" -- First rotation
+         ☁️ activedirectory reset_password "krbtgt" -- Second rotation to invalidate all existing tickets
+      🔴 end
+
+      -- ============================================================================
+      -- 4. THE ENDPOINT KINETICS (kill_process, quarantine_file, collect_memory)
+      -- ============================================================================
+      -- Action 4: Capture volatile memory for forensic dump
+      -- Voice-friendly: "Windows collect memory..."
+      ☁️ windows collect_memory from target_host to FORENSIC_SHARE
+      
+      -- Action 5: Kill the malicious process and its children
+      ☁️ windows kill_process suspect_pid on target_host
+      
+      -- Action 6: Quarantine the offending script/binary using Defender
+      ☁️ windows quarantine_file event.file_path on target_host
+      
+      -- Action 7: Collect artifacts (Registry hives, EventLogs, Shimcache)
+      ☁️ windows collect_artifacts from target_host
+
+      -- ============================================================================
+      -- 5. THE FLEET HARDENING (gpo, bitlocker, defender)
+      -- ============================================================================
+      -- Action 8: Check BitLocker status to ensure data-at-rest protection
+      🔹 set encryption_status: Boolean = windows bitlocker status on target_host
+      
+      -- Action 9: Push an emergency GPO to disable PowerShell for the impacted OU
+      ☁️ activedirectory gpo apply "Block-PowerShell-Emergency" to CRITICAL_OU
+      
+      -- Action 10: Force a full Defender scan across the entire Subnet
+      ☁️ defender trigger_scan subnet event.src_subnet
+
+      -- Action 11: Notify the Windows Admin and SOC teams
+      📡 notify slack channel "#ad-security-ops" message "🪟 *Windows/AD Interdiction Successful* \n*User:* `{target_user}` \n*Host:* `{target_host}` \n*Status:* AD Account LOCKED. KRBTGT Rotated. GPO Applied. \n*Forensics:* Memory dumped to `{FORENSIC_SHARE}`."
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Windows_AD_Remediation_Cycle" details {
+          user: target_user,
+          host: target_host,
+          encryption: encryption_status,
+          action: "ENTERPRISE_IDENTITY_REHABILITATION_COMPLETE"
+      }
+      
+      -- Anchor the AD eventlog hash and the memory dump fingerprint to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

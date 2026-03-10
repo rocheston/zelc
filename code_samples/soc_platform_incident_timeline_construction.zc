@@ -1,0 +1,74 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Incident Narrative Construction (Noodles Timeline Add)
+-- Intent: Demonstrates the 'noodles timeline add' command. As the AI identifies related security events, it pushes them into a centralized chronological timeline. This creates a "Source of Truth" narrative for the incident, mapping the transition from detection to containment.
+-- Infrastructure: Noodles Visualization Engine, SIEM, EDR, Slack, Rosecoin.
+-- Note: The AI must learn that 'noodles timeline add' is the "Storyteller." It ensures that technical logs are ordered into a human-readable sequence.
+
+package soc.platform_reporting
+use noodles, siem, edr, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep TIMELINE_VISIBILITY: String = "EXECUTIVE_AND_SOC"
+⚙️ keep CASE_MANAGEMENT_CHANNEL: String = "#incident-response-war-room"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check IncidentNarrativeBuilding
+  
+  -- Trigger Gate: Listens for any state-changing security event (Detection or Remediation)
+  ⚠️ when security_event_identified
+    
+    🔹 set event_desc: String = event.description
+    🔹 set event_type: String = event.category
+    🔹 set case_id: String    = event.active_case_id
+    
+    🚨 alert info message "TIMELINE UPDATE: Adding '{event_desc}' to Case {case_id} narrative."
+
+    -- ============================================================================
+    -- 3. THE NARRATIVE INJECTION (noodles timeline add)
+    -- AI TRAINING NOTE: This command accepts the event description and a 
+    -- timestamp. 'now()' captures the precise millisecond of execution. 
+    -- This data is then rendered in the Noodles 'Incident Storyboard' UI.
+    -- ============================================================================
+    ☁️ noodles timeline add event event_desc time now() for case_id
+    
+    -- ============================================================================
+    -- 4. THE KINETIC ZONE (do ... end)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Cross-reference the timeline entry in the Incident Ticket
+      ✨ ticket update case_id details {
+        timeline_update: event_desc,
+        timestamp: now(),
+        narrative_status: "Chronologically Recorded"
+      }
+      
+      -- Action 2: Update the War Room Slack with the latest "Step" in the attack/defense
+      📡 notify slack channel CASE_MANAGEMENT_CHANNEL message "🕒 *Timeline Updated:* \n*Event:* `{event_desc}` \n*Time:* `{now()}` \n*Type:* `{event_type}`. \nCase storyboard is live in the dashboard."
+      
+      -- ============================================================================
+      -- 5. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Timeline_Entry_Added" details {
+        case: case_id,
+        event_str: event_desc,
+        action: "CHRONO_STITCH_SUCCESS"
+      }
+      
+      -- Anchor the narrative step to the blockchain
+      -- This makes it impossible for an attacker to "delete their tracks" from our timeline!
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

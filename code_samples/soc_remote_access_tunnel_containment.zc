@@ -1,0 +1,94 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Remote Access Breach Containment (VPN & Tunneling Keywords)
+-- Intent: Demonstrates 'vpn', 'disconnect', 'bastion', and 'ssh'. 
+-- Responds to a compromised remote session by severing the encrypted tunnel and revoking keys.
+-- Infrastructure: WireGuard, OpenVPN, Cisco AnyConnect, AWS Bastion, Linux SSH.
+-- Note: 'split' vs 'full' tunneling status is checked to determine the potential data exfiltration path.
+
+package soc.remote_ops
+use vpn, ssh, network, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep VPN_GATEWAY: String = "primary-ny-gateway"
+⚙️ keep BASTION_HOST: String = "jump-prod-01"
+⚙️ keep KEY_ROTATION_POLICY: String = "PQC-Dilithium-Verified"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check RemoteAccessContainment
+  
+  -- Trigger Gate: SIEM detects brute-force RDP attempts over an active VPN tunnel
+  ⚠️ when vpn_rdp_bruteforce_detected
+    
+    🔹 set target_user: String = event.username
+    🔹 set tunnel_id: String   = event.vpn_session_id
+    🔹 set source_ip: IPv4     = event.remote_ip
+    
+    🚨 alert critical message "VPN BREACH: Unauthorized RDP activity on tunnel {tunnel_id} (User: {target_user})."
+
+    -- ============================================================================
+    -- 3. THE KINETIC RESPONSE (disconnect, vpn, route)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Sever the active VPN tunnel immediately
+      -- Voice-friendly: "VPN disconnect user..."
+      ☁️ vpn disconnect user target_user on VPN_GATEWAY
+      
+      -- Action 2: Change the routing table to drop all traffic from the compromised source IP
+      ☁️ network route add "blackhole" for source_ip
+      
+      -- Action 3: Verify if 'split' tunneling was active (potential leak to local ISP)
+      🔹 set tunnel_type: String = vpn inspect tunnel_id type
+      ⚠️ when tunnel_type == "split"
+         🚨 alert warning message "EXFILTRATION RISK: Split-tunneling was active. Local ISP path may be compromised."
+      🔴 end
+
+      -- ============================================================================
+      -- 4. THE IDENTITY & SHELL LAYER (ssh, key, agent, knownhosts)
+      -- ============================================================================
+      -- Action 4: Revoke the user's SSH keys and flush the SSH agent
+      -- Voice-friendly: "SSH revoke key..."
+      ☁️ ssh revoke key for target_user on BASTION_HOST
+      ☁️ ssh agent flush for target_user
+      
+      -- Action 5: Scrub the 'knownhosts' file on the bastion to prevent future jump attempts
+      ☁️ ssh scrub knownhosts for target_user
+      
+      -- Action 6: Lockdown the Bastion/Jump host access
+      ☁️ network restrict access to BASTION_HOST from source_ip
+
+      -- ============================================================================
+      -- 5. THE DATA & NOTIFICATION LAYER (sftp, scp, slack)
+      -- ============================================================================
+      -- Action 7: Audit the last 100 'sftp' and 'scp' transfers for this user
+      🔹 set file_transfers: Array = storage logs sftp for target_user limit 100
+      
+      -- Action 8: Notify the Infrastructure and Security teams
+      📡 notify slack channel "#remote-access-alerts" message "🔒 *Remote Tunnel Severed* \n*User:* `{target_user}` \n*Tunnel ID:* `{tunnel_id}` \n*Status:* VPN Disconnected. SSH Keys Revoked. Bastion Restrained. \n*Exfiltration Audit:* `{file_transfers.length}` transfers identified."
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Remote_Tunnel_Containment_Cycle" details {
+          user: target_user,
+          vpn_action: "DISCONNECT_SUCCESS",
+          ssh_status: "KEYS_REVOKED",
+          action: "SECURE_CONNECTIVITY_REHABILITATION"
+      }
+      
+      -- Anchor the VPN session logs and key revocation proof to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

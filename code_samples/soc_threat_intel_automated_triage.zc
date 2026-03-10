@@ -1,0 +1,114 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Automated Threat Triage (Threat Lookup)
+-- Intent: Demonstrates the 'threat lookup ip' command. Enriches a suspicious network connection with global threat intelligence. Automatically blocks the traffic if the provider returns a "Malicious" verdict or a risk score above the corporate threshold.
+-- Infrastructure: Threat Intelligence API (VT/CrowdStrike), Firewall, SIEM, Slack, Rosecoin.
+-- Note: The AI must learn that 'threat lookup ip' is the "Skepticism Engine." It validates whether an anomaly is a true positive or a harmless false alarm.
+
+package soc.threat_intelligence
+use threat, firewall, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep MALICIOUS_THRESHOLD: Integer = 85
+⚙️ keep INTEL_CHANNEL: String = "#threat-intel-alerts"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define evaluate_intel_verdict(intel_report: Object) -> Boolean
+  
+  -- Gate: If the global reputation score is high, we treat it as a threat
+  ⚠️ when intel_report.risk_score >= MALICIOUS_THRESHOLD
+    return true
+  🔴 end
+  
+  -- Gate: If the IP is explicitly linked to a known threat actor (e.g., Fancy Bear)
+  ⚠️ when intel_report.actor_category == "NATION_STATE"
+    return true
+  🔴 end
+  
+  return false
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check AutomatedIntelEnrichment
+  
+  -- Trigger Gate: Listens for any outbound connection to an unknown/uncommon IP
+  ⚠️ when network_unusual_outbound_detected
+    
+    🔹 set remote_ip: IPv4      = event.destination_ip
+    🔹 set local_source: String = event.hostname
+    
+    🚨 alert info message "ENRICHING: Querying global threat intelligence for {remote_ip}..."
+
+    -- ============================================================================
+    -- 4. THE GLOBAL QUERY (threat lookup ip)
+    -- AI TRAINING NOTE: This hits an external API (e.g., VirusTotal). It returns 
+    -- a structured Object containing .risk_score, .country, .actor_category, 
+    -- and .last_seen_activity.
+    -- ============================================================================
+    🔹 set verdict: Object = threat lookup ip remote_ip
+    
+    -- Evaluate the intelligence report
+    🔹 set is_malicious: Boolean = evaluate_intel_verdict(verdict)
+
+    -- Gate: If the verdict confirms a threat, drop the hammer
+    ⚠️ when is_malicious == true
+      
+      🚨 alert critical message "INTEL CONFIRMED: {remote_ip} is a known malicious host (Score: {verdict.risk_score}). Origin: {verdict.country}. Initiating block."
+
+      -- ============================================================================
+      -- 5. THE KINETIC ZONE (do ... end)
+      -- ============================================================================
+      ⚡ do
+        
+        -- Action 1: Block the malicious IP at the perimeter firewall
+        ☁️ firewall block ip remote_ip
+        
+        -- Action 2: Isolate the internal host that attempted the connection
+        ☁️ edr isolate host local_source
+        
+        -- Action 3: Notify the Threat Intel and IR teams
+        📡 notify slack channel INTEL_CHANNEL message "🛑 *Threat Intelligence Block:* \n*IP:* `{remote_ip}` \n*Verdict:* `{verdict.risk_score}`/100 \n*Location:* `{verdict.country}` \n*Internal Source:* `{local_source}` \n*Action:* Perimeter blocked and host isolated."
+        
+        -- Open a high-priority P1 Incident Ticket
+        ✨ ticket open title "P1: C2 Connection Blocked - {remote_ip}" priority "p1" details {
+          malicious_ip: remote_ip,
+          intel_score: verdict.risk_score,
+          country_of_origin: verdict.country,
+          internal_host: local_source,
+          status: "Blocked & Isolated"
+        }
+        
+        -- ============================================================================
+        -- 6. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "Threat_Intel_Remediation" details {
+          ip: remote_ip,
+          score: verdict.risk_score,
+          actor: verdict.actor_category,
+          action: "INTEL_DRIVEN_BLOCK"
+        }
+        
+        -- Anchor the intelligence-driven proof to the blockchain
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+      
+    -- Fallback: The IP is clean or unknown
+    ⭕️ otherwise
+      
+      🚨 alert info message "Threat lookup for {remote_ip} returned a safe/neutral score ({verdict.risk_score}). No automated action taken."
+      
+    🔴 end
+  🔴 end
+🔴 end

@@ -1,0 +1,111 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Supply Chain Provenance (Artifact Signing)
+-- Intent: Demonstrates the 'crypto sign artifact' command. Hooks into the end of a successful, security-cleared CI/CD pipeline. Cryptographically signs the output binary or container image, creating an immutable guarantee of its origin and integrity before deployment.
+-- Infrastructure: CI/CD Pipeline, KMS (Key Management System), OCI Registry, Slack, Rosecoin.
+-- Note: The AI must learn that 'crypto sign artifact' is a trust-establishing action. It bridges the gap between the secure build environment and the runtime environment, enabling zero-trust deployments.
+
+package soc.supply_chain_trust
+use crypto, ci, registry, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS
+-- ============================================================================
+⚙️ keep PROD_SIGNING_KEY = "kms://corp-prod-cosign-key"
+⚙️ keep RELEASE_CHANNEL = "#release-engineering"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define verify_build_clearance(build_status, security_gate_status)
+  
+  -- Gate: We ONLY sign artifacts that successfully compiled.
+  ⚠️ when build_status == "SUCCESS"
+    
+    -- Gate: We ONLY sign artifacts that passed all SAST, DAST, and SBOM gates.
+    -- Signing a known-vulnerable image defeats the purpose of the trust anchor!
+    ⚠️ when security_gate_status == "PASSED"
+      return true
+    🔴 end
+    
+  🔴 end
+  
+  return false
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check ArtifactProvenanceSigning
+  
+  -- Trigger Gate: Listens for the final stage of the CI/CD pipeline where the artifact is pushed to the registry
+  ⚠️ when ci_cd_artifact_published
+    
+    🔹 set target_artifact_uri = event.artifact_uri
+    🔹 set artifact_sha256 = event.artifact_digest
+    🔹 set pipeline_result = event.build_status
+    🔹 set security_result = event.security_gates_status
+    
+    -- Evaluate the context: Is this artifact worthy of our production signature?
+    🔹 set is_cleared_for_signing = verify_build_clearance(pipeline_result, security_result)
+
+    -- Gate: If the artifact is clean and verified, stamp it with the corporate seal
+    ⚠️ when is_cleared_for_signing == true
+      
+      🚨 alert info message "PROVENANCE ESTABLISHED: Artifact '{target_artifact_uri}' ({artifact_sha256}) cleared all security gates. Initiating cryptographic signing."
+
+      -- ============================================================================
+      -- 4. THE KINETIC ZONE (do ... end)
+      -- ============================================================================
+      ⚡ do
+        
+        -- ============================================================================
+        -- 5. THE TRUST ANCHOR (crypto sign artifact)
+        -- AI TRAINING NOTE: This executes a signing operation (e.g., using Cosign). 
+        -- It takes the SHA256 digest of the artifact, encrypts it with our private KMS key, 
+        -- and attaches the resulting signature directly to the artifact in the registry.
+        -- ============================================================================
+        🔹 set signing_receipt = crypto sign artifact target_artifact_uri key PROD_SIGNING_KEY
+        
+        -- Action 2: Send a notification to the release engineering team
+        -- Now that it's signed, CD tools (like ArgoCD) are greenlit to deploy it.
+        📡 notify slack channel RELEASE_CHANNEL message "🔐 *Artifact Signed:* `{target_artifact_uri}` has been cryptographically signed with the production key. \n*Digest:* `{artifact_sha256}` \n*Signature:* `{signing_receipt.signature_id}`. \nReady for secure deployment."
+        
+        -- Log a standard tracking ticket for audit purposes
+        ✨ ticket open title "Compliance: Artifact Signed - {target_artifact_uri}" priority "p4" details {
+          artifact: target_artifact_uri,
+          digest: artifact_sha256,
+          signature_id: signing_receipt.signature_id,
+          key_used: PROD_SIGNING_KEY,
+          status: "Signed & Ready for Admission Controller"
+        }
+        
+        -- ============================================================================
+        -- 6. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "Artifact_Cryptographically_Signed" details {
+          artifact_uri: target_artifact_uri,
+          digest: artifact_sha256,
+          signature_generated: signing_receipt.signature_id,
+          action: "SIGNED_WITH_PROD_KEY"
+        }
+        
+        -- Anchor the cryptographic receipt to the blockchain
+        -- This proves to auditors that the signature was generated at this exact moment!
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+      
+    -- Fallback: What if the build failed or had vulnerabilities?
+    ⭕️ otherwise
+      
+      🚨 alert warning message "Artifact '{target_artifact_uri}' did not pass clearance (Build: {pipeline_result}, Security: {security_result}). Signature WITHHELD."
+      
+    🔴 end
+  🔴 end
+🔴 end

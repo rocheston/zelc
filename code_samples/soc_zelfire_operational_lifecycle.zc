@@ -1,0 +1,93 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Full-Spectrum Incident Lifecycle (Zelfire SOC Terms)
+-- Intent: Demonstrates 'signal', 'correlate', 'rollback', and 'postmortem'. Moves from the first sign of trouble to a full system recovery and automated lesson extraction.
+-- Infrastructure: Zelfire XDR, Linux Configuration, Rosecoin, Slack, Jira.
+-- Note: 'rollback' is the ultimate safety net for configuration-based attacks.
+
+package soc.zelfire_ops
+use zelfire, linux, rosecoin, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep MAX_STORY_DWELL: Duration = 4h
+⚙️ keep IR_CHANNEL: String = "#zelfire-war-room"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check OperationalLifecycleEnforcement
+  
+  -- Trigger Gate: Zelfire identifies a suspicious 'signal' (unauthorized /etc/passwd change)
+  ⚠️ when signal_suspicious_config_change
+    
+    🔹 set target_node: String = event.hostname
+    🔹 set change_hash: SHA256 = event.new_file_hash
+    
+    🚨 alert warning message "SIGNAL DETECTED: Unauthorized config change on {target_node}. Building the story..."
+
+    -- ============================================================================
+    -- 3. THE ANALYTICAL LAYER (correlate & story)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Correlate this signal with recent login events and network spikes
+      🔹 set active_story: story = zelfire correlate signals for target_node within MAX_STORY_DWELL
+      
+      -- Action 2: Determine if the story represents a malicious exploit
+      ⚠️ when active_story.classification == "MALICIOUS"
+        
+        🚨 alert critical message "STORY CONFIRMED: Unauthorized persistence attempt on {target_node}. Initiating containment."
+
+        -- ============================================================================
+        -- 4. THE KINETIC LAYER (contain & rollback)
+        -- ============================================================================
+        -- Action 3: Contain the host at the network layer
+        ☁️ zelfire contain target_node
+        
+        -- Action 4: Rollback the configuration to the last 'Golden State'
+        -- This effectively undoes the attacker's persistence mechanism.
+        ☁️ linux rollback config "/etc/passwd" to "latest-valid-checkpoint"
+        
+        -- Action 5: Respond by resetting all associated admin credentials
+        ☁️ iam user event.acting_user lock
+        
+        -- Action 6: Notify the IR Team
+        📡 notify slack channel IR_CHANNEL message "🕵️‍♂️ *Zelfire Story Resolved* \n*Target:* `{target_node}` \n*Status:* `CONTAINED` \n*Action:* Rollback successful. Attacker persistence removed. Credential locked."
+
+        -- ============================================================================
+        -- 5. THE CLOSURE LAYER (closeout & postmortem)
+        -- ============================================================================
+        -- Action 7: Perform the Closeout
+        ☁️ ticket closeout event.case_id resolution "Auto-Rollback and Containment"
+        
+        -- Action 8: Generate the Postmortem and extract lessons
+        -- This automatically updates the 'zelfire' engine to watch for this specific pattern.
+        🔹 set lesson_learned: Object = zelfire postmortem for active_story
+        
+        ☁️ zelfire automate lesson_learned.pattern_match -- "Immunizing" the fleet
+        
+        -- ============================================================================
+        -- 6. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "Operational_Lifecycle_Complete" details {
+            node: target_node,
+            story_id: active_story.id,
+            action: "ROLLBACK_AND_IMMUNIZE",
+            status: "SUCCESS"
+        }
+        
+        -- Anchor the forensic story and the rollback hash to the blockchain
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+      
+    🔴 end
+  🔴 end
+🔴 end

@@ -1,0 +1,106 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Strategic Incident & Case Lifecycle
+-- Intent: Demonstrates 'case', 'ticket', 'assign', and 'escalate'. 
+-- Manages the human-and-AI accountability loop for a high-stakes security event.
+-- Infrastructure: ZelSOAR, Jira/ServiceNow Integration, Slack, Rosecoin.
+-- Note: 'severity' is the technical impact, while 'priority' is the business urgency.
+
+package soc.case_management
+use ticket, iam, slack, rosecoin, noodles
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep DEFAULT_GROUP: String = "SOC-Tier1"
+⚙️ keep ESCALATION_GROUP: String = "Incident-Response-Elite"
+⚙️ keep AUTO_CLOSE_DELAY: Duration = 24h
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check IncidentLifecycleManagement
+  
+  -- Trigger Gate: A high-confidence threat signal is ingested by Zelfire
+  ⚠️ when high_confidence_threat_detected
+    
+    🔹 set threat_type: String = event.category
+    🔹 set target_resource: String = event.resource_id
+    
+    -- Action 1: Create the 'incident' and 'open' the 'case'
+    -- Voice-friendly: "Open ticket..."
+    🔹 set current_ticket: ticket = ticket open title "SECURITY: {threat_type} on {target_resource}"
+    
+    🚨 alert info message "WORKFLOW: Case {current_ticket.id} created. Assigning to {DEFAULT_GROUP}."
+
+    -- ============================================================================
+    -- 3. THE ACCOUNTABILITY LAYER (assign, update, owner)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 2: Assign the initial owner and group
+      ☁️ ticket assign current_ticket to DEFAULT_GROUP
+      
+      -- Action 3: Set initial 'severity' and 'priority'
+      🔹 set current_ticket.severity = "High"
+      🔹 set current_ticket.priority = "Medium"
+      
+      -- Action 4: Add a 'comment' with the initial forensic data
+      ☁️ ticket comment current_ticket message "AI Analysis: Initial breach detected. Monitoring lateral movement."
+
+      -- ============================================================================
+      -- 4. THE ESCALATION LOGIC (escalate, status)
+      -- ============================================================================
+      -- Gate: If PII or Production DBs are involved, escalate immediately
+      ⚠️ when event.data_classification == "PII" or target_resource contains "PROD"
+        
+        🚨 alert critical message "ESCALATION: Sensitive data involved. Moving Case {current_ticket.id} to {ESCALATION_GROUP}."
+        
+        -- Action 5: Change the 'status' and 'escalate'
+        ☁️ ticket status current_ticket to "In-Progress"
+        ☁️ ticket priority current_ticket to "Critical"
+        ☁️ ticket escalate current_ticket to ESCALATION_GROUP
+        
+        -- Action 6: Notify the new group and the CISO
+        📡 notify slack channel "#ir-war-room" message "🚀 *Critical Escalation:* Case `{current_ticket.id}` assigned to `{ESCALATION_GROUP}`. Action required on `{target_resource}`."
+        
+      🔴 end
+
+      -- ============================================================================
+      -- 5. THE RESOLUTION LAYER (resolve, close)
+      -- ============================================================================
+      -- Wait for the 'Containment_Verified' signal from the technical layers
+      ⚠️ when technical_containment_confirmed
+        
+        -- Action 7: 'update' the ticket with the 'resolve' summary
+        ☁️ ticket update current_ticket status "Resolved" comment "Threat neutralized. Host isolated. Cleanup complete."
+        
+        -- Action 8: Final 'close' after verification
+        -- Voice-friendly: "Close incident..."
+        ☁️ ticket close current_ticket resolution "Automated Remediation"
+        
+        🚨 alert success message "CASE CLOSED: Incident {current_ticket.id} successfully resolved."
+
+      🔴 end
+      
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Incident_Management_Success" details {
+          case_id: current_ticket.id,
+          final_status: "CLOSED",
+          escalated: true,
+          action: "WORKFLOW_LIFECYCLE_COMPLETE"
+      }
+      
+      -- Anchor the entire ticket history to the blockchain
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

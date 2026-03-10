@@ -1,0 +1,99 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: API & Web Application Attack Simulation (Testing Keywords)
+-- Intent: Demonstrates 'fuzz', 'sqlinject', 'rate_limit', and 'simulate'. 
+-- Proactively tests endpoints for vulnerabilities and enforces API security.
+-- Infrastructure: Zelfire WAF, GraphQL/REST Gateway, Swagger/OpenAPI, Rosecoin.
+-- Note: 'dryrun' ensures the simulation doesn't corrupt production databases.
+
+package soc.web_security_testing
+use waf, api, threat, slack, rosecoin, noodles
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep API_GATEWAY: String = "https://api.rocheston.io/v2"
+⚙️ keep SCAN_INTENSITY: String = "aggressive"
+⚙️ keep TRUSTED_HMAC_KEY: String = "KMS-API-SIGNER-01"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check WebAppSecuritySimulation
+  
+  -- Trigger Gate: A new 'route' is detected in the 'swagger' / 'openapi' definition
+  ⚠️ when new_api_endpoint_detected
+    
+    🔹 set target_route: route = event.api_path
+    🔹 set target_method: String = event.http_method
+    
+    🚨 alert info message "SECURITY ASSESSMENT: Proactively testing {target_route} for OWASP vulnerabilities."
+
+    -- ============================================================================
+    -- 3. THE ATTACK SIMULATION LAYER (fuzz, inject, mutate, bypass)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Fuzz the endpoint with mutated payloads to check for crashes
+      -- Voice-friendly: "AINA fuzz endpoint..."
+      ☁️ aina fuzz target_route using "api-payload-dictionary-v1" intensity SCAN_INTENSITY
+      
+      -- Action 2: Simulate specific 'sqlinject' and 'xss' vectors
+      -- We use 'dryrun' to ensure no data is actually written.
+      🔹 set sqli_result: Object = aina simulate "sqlinject" on target_route mode "dryrun"
+      🔹 set xss_result: Object  = aina simulate "xss" on target_route mode "readonly"
+      
+      -- Action 3: Attempt a 'bypass' of the WAF using 'headerinject' or 'deserialization'
+      ⚠️ when aina check_bypass on target_route
+         🚨 alert critical message "BYPASS DETECTED: {target_route} is vulnerable to WAF evasion."
+      🔴 end
+
+      -- ============================================================================
+      -- 4. THE API GOVERNANCE LAYER (rate_limit, hmac, idor, ssrf)
+      -- ============================================================================
+      -- Action 4: Verify 'rate_limit' enforcement to prevent 'bruteforce' or 'spraying'
+      ☁️ api verify rate_limit on target_route threshold 100/min
+      
+      -- Action 5: Validate the 'hmac' 'signature' and 'apikey' requirement
+      ☁️ api verify signature on target_route using TRUSTED_HMAC_KEY
+      
+      -- Action 6: Test for 'idor' (Insecure Direct Object Reference)
+      -- Checking if user A can access user B's resource via ID mutation.
+      ☁️ aina assess "idor" on target_route mapping "user_id"
+      
+      -- Action 7: Check for 'ssrf' (Server-Side Request Forgery) on internal routes
+      ☁️ aina scan "ssrf" for target_route targets ["169.254.169.254", "localhost"]
+
+      -- ============================================================================
+      -- 5. THE REPORTING LAYER (benchmark, openapi, summary)
+      -- ============================================================================
+      -- Action 8: Generate a security 'benchmark' score for the endpoint
+      🔹 set security_score: Integer = aina benchmark target_route
+      
+      -- Action 9: Export the 'summary' to the developer's 'swagger' UI
+      ☁️ noodles export_json for target_route to "security-docs/api-risk.json"
+      
+      -- Action 10: Notify the DevSecOps team
+      📡 notify slack channel "#api-security-fuzzing" message "🛡️ *API Security Scan Complete* \n*Route:* `{target_route}` \n*Vulnerabilities:* SQLi: `{sqli_result.status}`, XSS: `{xss_result.status}` \n*Risk Score:* `{security_score}/100` \n*Status:* { (security_score > 80) ? 'READY_FOR_PROD' : 'REMEDIATION_REQUIRED' }"
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "API_Security_Testing_Cycle" details {
+          route: target_route,
+          fuzzing_status: "COMPLETE",
+          score: security_score,
+          action: "PROACTIVE_HARDENING_SUCCESS"
+      }
+      
+      -- Anchor the scan results and payloads to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

@@ -1,0 +1,102 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Industrial Control System Protection (OT Keywords)
+-- Intent: Demonstrates 'plc', 'modbus', 'purdue_model', and 'safety_system'. 
+-- Detects unauthorized command injection in Level 1/2 of the Purdue Model.
+-- Infrastructure: Siemens PLC, Modbus Gateway, SCADA Historian, Rosecoin.
+-- Note: 'maintenance_window' is checked to ensure security actions don't disrupt production.
+
+package soc.ot_ics_ops
+use ot, network, storage, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep TARGET_ZONE: String = "Turbine-Control-VLAN"
+⚙️ keep CRITICAL_PLC: IPv4 = 192.168.50.10
+⚙️ keep SAFETY_PROTOCOL: String = "IEC-62443-4-2"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check IndustrialProcessIntegrity
+  
+  -- Trigger Gate: AINA identifies an "unauthorized Write-Coil" Modbus command to a PLC
+  ⚠️ when ot_unauthorized_modbus_write_detected
+    
+    🔹 set source_ip: IPv4 = event.src_ip
+    🔹 set command_type: String = event.function_code
+    🔹 set target_register: Integer = event.register_address
+    
+    🚨 alert critical message "OT BREACH: Unauthorized {command_type} to PLC {CRITICAL_PLC}. Risk to Safety Systems detected."
+
+    -- ============================================================================
+    -- 3. THE PROTOCOL & SEGMENTATION LAYER (purdue_model, modbus, scada)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Verify the 'purdue_model' level of the source
+      -- Voice-friendly: "Check Purdue level..."
+      🔹 set source_level: Integer = ot check_purdue_level for source_ip
+      
+      -- Action 2: Inspect the 'historian' for process baseline drift
+      -- Checks if the command would force the physical system out of safe bounds.
+      🔹 set process_drift: Boolean = ot check_historian_baseline for CRITICAL_PLC
+      
+      -- Action 3: Verify if we are currently in a 'maintenance_window'
+      -- Security interdiction is more aggressive outside of scheduled maintenance.
+      ⚠️ when ot check_maintenance_window == false and source_level > 2
+         🚨 alert critical message "ACTUAL ATTACK: Non-OT device at Level {source_level} attempting Level 1 control."
+         
+         -- Action 4: Activate 'protocol_whitelist' and block the 'serial_gateway'
+         ☁️ network block connection from source_ip to CRITICAL_PLC
+         ☁️ ot enforce allowlist_control on "Modbus-TCP-Gateway"
+      🔴 end
+
+      -- ============================================================================
+      -- 4. THE PHYSICAL SAFETY LAYER (safety_system, rtu, hmi)
+      -- ============================================================================
+      -- Action 5: Lock the 'hmi' to prevent unauthorized operator manual overrides
+      -- Voice-friendly: "Lock HMI station..."
+      ☁️ ot lock_station "HMI-Console-Main"
+      
+      -- Action 6: Engage 'airgap' simulation for the 'safety_system'
+      -- Isolates the safety instrumented system from the broader 'control_network'.
+      ☁️ ot isolate safety_system from "plant_network"
+      
+      -- Action 7: Query the 'rtu' for raw sensor data to verify the 'historian' state
+      🔹 set field_telemetry: Object = ot query rtu at "Substation-Alpha"
+
+      -- ============================================================================
+      -- 5. THE FORENSIC & COMPLIANCE LAYER (iec_62443, engineering_workstation)
+      -- ============================================================================
+      -- Action 8: Audit the 'engineering_workstation' for unauthorized 'profinet' config changes
+      ☁️ ot audit engineering_workstation for "unauthorized-firmware-updates"
+      
+      -- Action 9: Generate an 'iec_62443' compliance attestation post-incident
+      ☁️ rcf verify control "OT-SEC-01" attestation "Industrial-Hardening-Verified"
+
+      -- Action 10: Notify the Plant Manager and OT-SOC
+      📡 notify slack channel "#ot-security-center" message "⚙️ *Industrial Interdiction Successful* \n*PLC:* `{CRITICAL_PLC}` \n*Protocol:* `Modbus/TCP` \n*Status:* Protocol Whitelist Enforced. HMI Locked. Safety System Isolated. \n*Drift:* `{ (process_drift) ? 'DETECTED' : 'NONE' }`"
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "OT_ICS_Remediation_Cycle" details {
+          plc: CRITICAL_PLC,
+          protocol: "Modbus",
+          compliance: SAFETY_PROTOCOL,
+          action: "CYBER_PHYSICAL_SYSTEM_SECURED"
+      }
+      
+      -- Anchor the historian snapshot and PLC config hash to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

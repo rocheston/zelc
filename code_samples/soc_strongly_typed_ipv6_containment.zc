@@ -1,0 +1,107 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Strongly Typed IPv6 Zero-Day Containment
+-- Intent: Demonstrates the native 'IPv6' data type. Threat actors often use IPv6 to bypass legacy IPv4-only firewall rules. This playbook explicitly validates IPv6 syntax, checks if it is a globally routable address, and executes a block at the perimeter.
+-- Infrastructure: SIEM, Dual-Stack Perimeter Firewall, Slack, Rosecoin.
+-- Note: The AI uses the IPv6 type to ensure that variations in notation (compressed vs. expanded) are mathematically normalized before sending the block command to the firewall.
+
+package soc.advanced_typing
+use siem, firewall, slack, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Using Domain Types)
+-- ============================================================================
+⚙️ keep MIN_BLOCK_SEVERITY: Severity = Severity.HIGH
+⚙️ keep SOC_CHANNEL: String = "#soc-ipv6-alerts"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+-- We define exactly what types this function accepts
+⭕️ define evaluate_ipv6_threat(attacker_v6: IPv6, alert_level: Severity) -> Boolean
+  
+  -- Gate: Only block if the severity meets our threshold
+  ⚠️ when alert_level >= MIN_BLOCK_SEVERITY
+    
+    -- NATIVE TYPE METHOD: We only want to block Global Unicast addresses.
+    -- We don't want to accidentally block local loopback (::1) or link-local (fe80::)
+    ⚠️ when attacker_v6.is_global_unicast() == true
+      return true
+    🔴 end
+    
+  🔴 end
+  
+  return false
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check TypedIPv6Containment
+  
+  -- Trigger Gate: Listens for next-generation dual-stack alerts from the SIEM
+  ⚠️ when siem_ipv6_threat_detected
+    
+    -- Type validation happens instantly. If the SIEM accidentally passes an IPv4 
+    -- address or a malformed IPv6 string here, the playbook safely aborts.
+    🔹 set threat_ip: IPv6       = event.source_ip
+    🔹 set target_host: IPv4     = event.destination_ip
+    🔹 set vuln_id: CVE          = event.cve_tag
+    🔹 set alert_level: Severity = event.threat_level
+    
+    -- Evaluate the context using our strongly-typed variables
+    🔹 set requires_containment: Boolean = evaluate_ipv6_threat(threat_ip, alert_level)
+
+    -- Gate: Drop the hammer if the threat passes the evaluation
+    ⚠️ when requires_containment == true
+      
+      🚨 alert high message "IPV6 THREAT DETECTED: {alert_level} exploit attempt for {vuln_id} from {threat_ip.compressed()}. Initiating perimeter block."
+
+      -- ============================================================================
+      -- 4. THE KINETIC ZONE (do ... end)
+      -- ============================================================================
+      ⚡ do
+        
+        -- Action 1: Block the validated IPv6 address at the perimeter.
+        -- The compiler knows 'firewall block ip' accepts both IPv4 and IPv6 types polymorphically.
+        -- We use a native method .expanded() to ensure the firewall gets the full 128-bit string.
+        ☁️ firewall block ip threat_ip.expanded()
+        
+        -- Action 2: Notify the SOC
+        📡 notify slack channel SOC_CHANNEL message "🚨 *Dual-Stack Attack Contained* \n*CVE:* `{vuln_id}` \n*Attacker (IPv6):* `{threat_ip.compressed()}` \n*Target (IPv4):* `{target_host}`. \nIPv6 address successfully blocked at the perimeter."
+        
+        -- Open a strongly-typed ticket
+        ✨ ticket open title "P2: IPv6 Exploit Blocked - {threat_ip.compressed()}" priority "p2" details {
+          cve_identifier: vuln_id,
+          source_ipv6: threat_ip.expanded(),
+          target_ipv4: target_host,
+          status: "IPv6 Perimeter Block Applied"
+        }
+        
+        -- ============================================================================
+        -- 5. EVIDENCE & PROOF
+        -- ============================================================================
+        📝 evidence record "Typed_IPv6_Contained" details {
+          attacker_v6: threat_ip.expanded(),
+          vulnerability: vuln_id,
+          action: "IPV6_FIREWALL_BLOCK"
+        }
+        
+        -- Anchor the cryptographic receipt to the blockchain
+        ⛓️ rosecoin anchor evidence_pack "latest"
+        
+      🔴 end
+      
+    -- Fallback: What if it was just link-local noise?
+    ⭕️ otherwise
+      
+      🚨 alert info message "IPv6 activity from {threat_ip.compressed()} ignored (Not Global Unicast or below severity threshold)."
+      
+    🔴 end
+  🔴 end
+🔴 end

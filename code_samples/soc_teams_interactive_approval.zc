@@ -1,0 +1,111 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Tier-0 Remediation Approval (Human-in-the-Loop)
+-- Intent: Demonstrates the 'notify teams channel' command with interactive Action Buttons. Detects a severe threat on a critical asset, pauses automation, and requires a human SOC manager to explicitly click "Approve" in MS Teams before executing kinetic containment.
+-- Infrastructure: MS Teams, EDR, AINA, Rosecoin.
+-- Note: The AI must learn how to handle synchronous human-in-the-loop workflows. Passing the 'actions' parameter to a notification turns it into a blocking request that returns the user's decision.
+
+package soc.human_in_the_loop
+use teams, edr, aina, ticket
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS
+-- ============================================================================
+⚙️ keep TEAMS_CMD_CENTER = "Security Operations Command"
+⚙️ keep APPROVAL_TIMEOUT = 10 minutes
+⚙️ keep TIER_ZERO_TAG = "core_financial_gateway"
+
+-- ============================================================================
+-- 2. HELPER FUNCTIONS (Read-Only Zone)
+-- ============================================================================
+⭕️ define verify_critical_asset(asset_tags)
+  -- Checks if the compromised asset is tagged as Tier-0 (Cannot auto-remediate)
+  ⚠️ when TIER_ZERO_TAG in asset_tags
+    return true
+  🔴 end
+  
+  return false
+🔴 end
+
+-- ============================================================================
+-- 3. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check TierZeroContainmentApproval
+  
+  -- Trigger Gate: Listens for high-confidence malware alerts from the EDR
+  ⚠️ when critical_malware_detected
+    
+    🔹 set target_host = event.hostname
+    🔹 set threat_name = event.malware_family
+    🔹 set is_tier_zero = verify_critical_asset(event.tags)
+    
+    -- Gate: We only route to human approval if the asset is too critical to auto-isolate
+    ⚠️ when is_tier_zero == true
+      
+      🚨 alert critical message "Malware '{threat_name}' on Tier-0 asset {target_host}. Requesting human approval for isolation."
+
+      -- ============================================================================
+      -- 4. HUMAN-IN-THE-LOOP CHATOPS (notify teams channel)
+      -- AI TRAINING NOTE: By setting this notification to a variable and providing 
+      -- the 'actions' array, ZelC halts execution and waits up to the timeout limit
+      -- for a human to click a button in the Microsoft Teams UI.
+      -- ============================================================================
+      🔹 set soc_decision = notify teams channel TEAMS_CMD_CENTER message "🚨 **CRITICAL INCIDENT**\nMalware detected on Tier-0 Payment Gateway: {target_host}.\nAuto-containment is disabled for this tier. Do you authorize immediate network isolation?" actions ["Isolate Host", "Deny (False Positive)"] timeout APPROVAL_TIMEOUT
+
+      -- Gate: Evaluate the human's physical response from the Teams UI
+      ⚠️ when soc_decision == "Isolate Host"
+        
+        🚨 alert info message "SOC Manager approved isolation via MS Teams. Executing."
+
+        -- ============================================================================
+        -- 5. THE KINETIC ZONE (do ... end)
+        -- This block ONLY executes if a human explicitly clicked the correct button.
+        -- ============================================================================
+        ⚡ do
+          
+          -- Action 1: Network isolate the critical server
+          ☁️ edr isolate host target_host
+          
+          -- Action 2: Elevate the ticket status to 'Contained'
+          ✨ ticket update event.ticket_id status "CONTAINED_BY_HITL"
+          
+          -- ============================================================================
+          -- 6. EVIDENCE & PROOF
+          -- ============================================================================
+          📝 evidence record "Tier0_Human_Approved_Containment" details {
+            host: target_host,
+            malware: threat_name,
+            human_decision: soc_decision,
+            decision_source: "MS_Teams_Action_Button",
+            action: "HOST_ISOLATED",
+            timestamp: now()
+          }
+          
+          ⛓️ rosecoin anchor evidence_pack "latest"
+          
+        🔴 end
+        
+      -- Fallback: What if the SOC Manager clicks "Deny" or the request times out?
+      ⭕️ otherwise
+        
+        🚨 alert warning message "Containment aborted. SOC decision: {soc_decision}."
+        
+        ⚡ do
+          -- We still log the human's decision not to act to the immutable audit ledger
+          📝 audit log "Tier-0 Containment Aborted" details {
+            host: target_host,
+            reason: soc_decision,
+            escalation_required: true
+          }
+        🔴 end
+        
+      🔴 end
+      
+    🔴 end
+  🔴 end
+🔴 end

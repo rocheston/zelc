@@ -1,0 +1,102 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Cross-Domain XDR Correlation (XDR Keywords)
+-- Intent: Demonstrates 'correlation', 'telemetry', 'signal_to_noise', and 'lookback'. 
+-- Connects disparate events into a single "Attack Story" for rapid remediation.
+-- Infrastructure: Zelfire XDR Lake, AINA Correlation Engine, Rosecoin.
+-- Note: 'confidence_score' determines if the response is fully autonomous.
+
+package soc.zelxdr_core
+use xdr, threat_intel, cloud, identity, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep MIN_CONFIDENCE: Integer = 85
+⚙️ keep LOOKBACK_WINDOW: Duration = 30d
+⚙️ keep NOISE_FLOOR: Decimal = 0.1
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Correlation Engine)
+-- ============================================================================
+🔥 check XDRCrossDomainCorrelation
+  
+  -- Trigger Gate: Multiple low-fidelity alerts fire across different domains
+  ⚠️ when multi_domain_signals_detected
+    
+    🔹 set incident_id: String = xdr generate_story_id
+    🔹 set endpoint_signal: telemetry = xdr get_telemetry from "Endpoint"
+    🔹 set cloud_signal: telemetry = xdr get_telemetry from "AWS-CloudTrail"
+    
+    🚨 alert info message "XDR ANALYSIS: Correlating signals from Endpoint and Cloud. Signal-to-Noise: {xdr.signal_to_noise}."
+
+    -- ============================================================================
+    -- 3. THE ANALYTICAL SYNTHESIS (correlation, indicators, lookback)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Perform 'lookback' to find historical indicators of the same actor
+      -- Voice-friendly: "XDR perform lookback..."
+      🔹 set historical_hits: Array = xdr lookback for event.actor_id window LOOKBACK_WINDOW
+      
+      -- Action 2: Run the 'correlation' logic to link the PowerShell to the API spike
+      -- Links 'powershell' (Host) + 'sts:AssumeRole' (Cloud) + 's3:GetObject' (Data).
+      🔹 set attack_story: Object = xdr correlate endpoint_signal with cloud_signal
+      
+      -- Action 3: Calculate the 'confidence_score' for the synthesized threat
+      🔹 set confidence: Integer = xdr calculate_confidence attack_story
+
+      -- ============================================================================
+      -- 4. THE AUTONOMOUS RESPONSE (confidence_score, warroom, suppress)
+      -- ============================================================================
+      -- Action 4: If confidence is high, trigger autonomous remediation
+      ⚠️ when confidence >= MIN_CONFIDENCE
+         🚨 alert critical message "XDR ATTACK STORY: High-confidence ({confidence}%) exfiltration detected. Initiating XDR-Lockdown."
+         
+         -- Triggering the SOAR playbook from File #147
+         ☁️ playbooks trigger "GlobalOrchestrationFlow" with { "affected_assets": attack_story.assets }
+      🔴 end
+      
+      -- Action 5: If confidence is low, move to the 'warroom' for human triage
+      ⚠️ when confidence < MIN_CONFIDENCE and confidence > 50
+         🚨 alert warning message "XDR TRIAGE: Moderate confidence. Moving to Warroom for analyst review."
+         ☁️ xdr open_warroom id incident_id participants ["SOC-Tier-2", "AINA"]
+      🔴 end
+      
+      -- Action 6: Suppress the signal if it's below the 'noise_floor'
+      ⚠️ when xdr.signal_to_noise < NOISE_FLOOR
+         ☁️ xdr suppress_signal incident_id reason "Low_Signal_To_Noise"
+      🔴 end
+
+      -- ============================================================================
+      -- 5. THE INTELLIGENCE UPDATE (threat_intel, cold_storage)
+      -- ============================================================================
+      -- Action 7: Update global 'indicators' based on the new attack pattern
+      ☁️ threat_intel add_indicator type "behavioral_pattern" value attack_story.logic
+      
+      -- Action 8: Move the synthesized story to 'cold_storage' for future training
+      ☁️ storage archive incident_id to "xdr-history-lake"
+
+      -- Action 9: Notify the Global Security Director
+      📡 notify slack channel "#xdr-intelligence-feed" message "👁️ *XDR Story Synthesized* \n*ID:* `{incident_id}` \n*Domains:* `Host, Cloud, Identity` \n*Confidence:* `{confidence}%` \n*Remediation:* `AUTONOMOUS_SOAR_TRIGGERED`"
+
+      -- ============================================================================
+      -- 6. EVIDENCE & FINAL ANCHOR
+      -- ============================================================================
+      📝 evidence record "XDR_Correlation_Success" details {
+          story: incident_id,
+          correlated_events: [endpoint_signal.id, cloud_signal.id],
+          final_verdict: "THREAT_NEUTRALIZED",
+          action: "XDR_STORY_LOCKED_AND_ANCHORED"
+      }
+      
+      -- Anchor the full XDR story and its correlation logic to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end

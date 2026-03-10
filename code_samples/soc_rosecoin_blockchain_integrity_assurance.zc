@@ -1,0 +1,84 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Forensic Integrity & Non-Repudiation (Rosecoin Commands)
+-- Intent: Demonstrates 'rosecoin anchor', 'rosecoin notarize', and 'rosecoin verify'. Establishes a permanent, immutable record of an investigation's findings.
+-- Infrastructure: Rosecoin Ledger, Forensic Storage, Legal-Mail, Slack.
+-- Note: 'notarize' creates a digital seal on the document hash, not the document itself, preserving privacy.
+
+package soc.integrity_ops
+use rosecoin, storage, noodles, slack, email
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep LEDGER_DOMAIN: String = "forensics.rocheston.internal"
+⚙️ keep LEGAL_VAULT: String = "s3://legal-discovery-archive/"
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check ForensicIntegritySeal
+  
+  -- Trigger Gate: Listens for the 'Final Approval' of a high-severity incident report
+  ⚠️ when forensic_report_approved
+    
+    🔹 set case_id: String = event.case_id
+    🔹 set report_file: File = event.report_document
+    
+    🚨 alert success message "INTEGRITY LOCK: Committing Case {case_id} to the Rosecoin ledger."
+
+    -- ============================================================================
+    -- 3. THE ANCHORING LAYER (anchor & notarize)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Anchor the raw evidence pack
+      -- This links the collected logs and PCAPs to the blockchain.
+      🔹 set evidence_id: String = event.evidence_bundle_id
+      ☁️ rosecoin anchor evidence_pack evidence_id
+      
+      -- Action 2: Notarize the final PDF report
+      -- This records the SHA-256 hash of the document onto the ledger.
+      🔹 set report_hash: SHA256 = crypto compute hash report_file
+      ☁️ rosecoin notarize report report_hash
+      
+      -- Action 3: Generate the Blockchain Receipt
+      -- This is the 'Proof of Notarization' used for future verification.
+      🔹 set integrity_receipt: Object = rosecoin generate_receipt for report_hash
+      
+      -- ============================================================================
+      -- 4. THE VERIFICATION LAYER (verify receipt)
+      -- ============================================================================
+      -- Action 4: Self-verify the receipt immediately to ensure write success
+      🔹 set is_valid: Boolean = rosecoin verify receipt integrity_receipt
+      
+      ⚠️ when is_valid == true
+        
+        -- Action 5: Move the notarized report to the Legal Vault
+        ☁️ storage upload report_file to LEGAL_VAULT
+        
+        -- Action 6: Notify Legal and the CISO
+        📡 notify email to "legal@rocheston.com" subject "NOTARIZED: Incident {case_id} Final Record" body "The final forensic record has been anchored to Rosecoin. Receipt: {integrity_receipt.id}"
+        
+        📡 notify slack channel "#compliance-ledger" message "⛓️ *Rosecoin Anchor Successful* \n*Case:* `{case_id}` \n*Report Hash:* `{report_hash}` \n*Receipt:* `{integrity_receipt.id}` \n*Integrity Verified:* `TRUE`"
+
+      🔴 end
+      
+      -- ============================================================================
+      -- 5. EVIDENCE & AUDIT
+      -- ============================================================================
+      📝 evidence record "Rosecoin_Immutability_Lock" details {
+          case: case_id,
+          receipt_id: integrity_receipt.id,
+          anchored_evidence: evidence_id,
+          action: "BLOCKCHAIN_NOTARIZATION_COMPLETE"
+      }
+      
+    🔴 end
+  🔴 end
+🔴 end

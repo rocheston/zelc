@@ -1,0 +1,101 @@
+-- ============================================================================
+-- 🛡️ ROCHESTON ZELC PROGRAMMING LANGUAGE
+-- 👤 Creator: Haja Mo
+-- 🏢 Organization: Rocheston
+-- 📜 Platform: Rocheston Agentic AI Cybersecurity Automation Platform
+-- ============================================================================
+
+-- Playbook: Web Infrastructure & TLS Hardening (Web Keywords)
+-- Intent: Demonstrates 'nginx', 'vhost', 'hsts', and 'certificate'. 
+-- Automates the remediation of weak SSL/TLS configurations and header security.
+-- Infrastructure: Nginx/Apache, Let's Encrypt CA, Zelfire WAF, Rosecoin.
+-- Note: 'reload' is used instead of 'restart' to ensure Zero-Downtime.
+
+package soc.web_ops
+use nginx, apache, ssl, network, slack, rosecoin
+
+-- ============================================================================
+-- 1. CONFIGURATION GOVERNORS (Strongly Typed)
+-- ============================================================================
+⚙️ keep TARGET_SITE: String = "api.rocheston.internal"
+⚙️ keep MIN_TLS_VERSION: String = "TLSv1.3"
+⚙️ keep HSTS_MAX_AGE: Integer = 31536000 -- 1 Year
+
+-- ============================================================================
+-- 2. THE ENTRY POINT (The Check Block)
+-- ============================================================================
+🔥 check WebServerTLSValidation
+  
+  -- Trigger Gate: A daily scan detects an expiring certificate or weak 'ssl' ciphers
+  ⚠️ when web_security_vulnerability_detected
+    
+    🔹 set target_host: String = event.hostname
+    🔹 set current_vhost: vhost = event.site_config
+    
+    🚨 alert warning message "WEB VULNERABILITY: {TARGET_SITE} on {target_host} is using deprecated TLS. Hardening configuration."
+
+    -- ============================================================================
+    -- 3. THE TLS & CERTIFICATE LAYER (ssl, cert, chain, ca)
+    -- ============================================================================
+    ⚡ do
+      
+      -- Action 1: Rotate the SSL certificate using the internal CA
+      -- Voice-friendly: "Rotate SSL certificate..."
+      ☁️ ssl rotate certificate for TARGET_SITE via "Rocheston-CA"
+      
+      -- Action 2: Verify the full certificate 'chain' and 'ocsp' stapling
+      🔹 set cert_status: Object = ssl verify chain for TARGET_SITE
+      ☁️ ssl enable ocsp_stapling for TARGET_SITE
+      
+      -- Action 3: Update 'nginx' config to enforce TLS 1.3 only
+      -- Voice-friendly: "Nginx update config..."
+      ☁️ nginx config set "ssl_protocols" to MIN_TLS_VERSION in current_vhost
+
+      -- ============================================================================
+      -- 4. THE HEADER SECURITY LAYER (hsts, csrf, cors, cookie)
+      -- ============================================================================
+      -- Action 4: Enforce HSTS (HTTP Strict Transport Security)
+      ☁️ nginx headers add "Strict-Transport-Security" value "max-age={HSTS_MAX_AGE}; includeSubDomains"
+      
+      -- Action 5: Secure 'cookie' attributes (HttpOnly, Secure, SameSite)
+      ☁️ nginx headers modify "Set-Cookie" append "HttpOnly; Secure; SameSite=Strict"
+      
+      -- Action 6: Configure 'cors' to allow only trusted origins
+      ☁️ nginx config set "add_header" "Access-Control-Allow-Origin" to "https://rocheston.com"
+      
+      -- Action 7: Implement 'rewrite' to force all 'http' traffic to 'https'
+      ☁️ nginx rewrite "^/(.*)$" to "https://$host/$1" permanent
+
+      -- ============================================================================
+      -- 5. THE OPERATIONAL LAYER (reload, logs, rotate)
+      -- ============================================================================
+      -- Action 8: Test the configuration syntax before applying
+      ⚠️ when nginx test_config == "SUCCESS"
+         
+         -- Action 9: Reload the service to apply changes gracefully
+         ☁️ nginx reload target_host
+         
+         -- Action 10: Rotate the 'access.log' and 'error.log' to clear previous trace
+         ☁️ nginx rotate logs on target_host
+         
+      🔴 end
+
+      -- Action 11: Notify the Web-Ops team
+      📡 notify slack channel "#web-infrastructure-alerts" message "🌐 *Web Security Hardened* \n*Site:* `{TARGET_SITE}` \n*Protocol:* `{MIN_TLS_VERSION}` \n*Status:* Cert Rotated. HSTS Enforced. Nginx Reloaded."
+
+      -- ============================================================================
+      -- 6. EVIDENCE & PROOF
+      -- ============================================================================
+      📝 evidence record "Web_TLS_Hardening_Cycle" details {
+          site: TARGET_SITE,
+          tls_version: MIN_TLS_VERSION,
+          hsts_active: true,
+          action: "WEBSERVER_IMMUNIZATION_SUCCESS"
+      }
+      
+      -- Anchor the new certificate hash and config state to Rosecoin
+      ⛓️ rosecoin anchor evidence_pack "latest"
+      
+    🔴 end
+  🔴 end
+🔴 end
