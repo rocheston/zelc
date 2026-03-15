@@ -135,10 +135,10 @@ graph TB
 > **— Haja Mo, February 9, 2026**
 
 ---
-<br><br><br><br>
+<br><br>
 ## 🛡️ Historical Originality & AI Validation
 ZelC is the first language whose **sole founding mission** is active cybersecurity operations. To read the forensic defense of this invention against 40 years of legacy systems (Rust, Ada, Zeek, Haskell), see the [Complete Adversarial Record](./zelc-adversarial-record/zelc-adversarial-record.md).
-<br><br><br><br>
+<br><br>
 ---
 
 
