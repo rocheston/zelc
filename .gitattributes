@@ -1,2 +1,2 @@
-*.zc linguist-language=Ruby
-*.zelc linguist-language=Ruby
+*.zc linguist-language=Lua
+*.zelc linguist-language=Lua
