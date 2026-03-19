@@ -1,4 +1,5 @@
 # 🛡️ ZelC: The World's First Cybersecurity Programming Language
+[![Test ZelC Action](https://github.com/rocheston/zelc/actions/workflows/test-action.yml/badge.svg)](https://github.com/rocheston/zelc/actions/workflows/test-action.yml)
 
 <div align="center">
 
