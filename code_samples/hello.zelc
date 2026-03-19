@@ -1,0 +1,11 @@
+-- Hello ZelC
+-- A minimal check block demonstrating the basics.
+
+check HelloWorld
+  alert low message "ZelC is running"
+
+  evidence record "Hello" details {
+    status: "operational"
+  }
+end
+
