@@ -1,0 +1,23 @@
+name: 'ZelC Kinetic Engine'
+description: 'Run Rocheston ZelC playbooks for supply-chain integrity, SBOM generation, and immutable evidence.'
+author: 'Rocheston'
+branding:
+  icon: 'shield'
+  color: 'orange'
+
+inputs:
+  playbook:
+    description: 'Path to the .zelc playbook'
+    required: true
+  api_key:
+    description: 'Zelfire API Key for the Kinetic Engine'
+    required: true
+
+runs:
+  using: 'docker'
+  image: 'docker://rocheston/zelc:latest' # <-- Points to your Docker Hub image!
+  args:
+    - run
+    - ${{ inputs.playbook }}
+    - --api-key
+    - ${{ inputs.api_key }}
