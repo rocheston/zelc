@@ -15,7 +15,7 @@ inputs:
 
 runs:
   using: 'docker'
-  image: 'docker://rocheston/zelc:latest' # <-- Points to your Docker Hub image!
+  image: 'docker pull rocheston/zelc:latest-amd64' # <-- Points to your Docker Hub image!
   args:
     - run
     - ${{ inputs.playbook }}
