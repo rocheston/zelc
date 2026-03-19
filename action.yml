@@ -16,7 +16,7 @@ inputs:
 runs:
   using: 'docker'
   # GitHub Actions requires this exact 'docker://' formatting, no "pull" command!
-  image: 'docker://rocheston/zelc:latest-amd64'
+  image: 'docker://rocheston/zelc:latest'
   env:
     # This securely passes the optional key to your container if a user provides it
     ZELFIRE_API_KEY: ${{ inputs.api_key }}
